@@ -1,0 +1,24 @@
+# Entorno de uv
+.venv/
+__pycache__/
+*.py[cod]
+
+# Herramientas
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Bases de datos locales (SQLite por defecto) y logs
+*.db
+*.sqlite3
+*.log
+
+# Local
+.env

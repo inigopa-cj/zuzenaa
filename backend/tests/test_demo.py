@@ -209,3 +209,11 @@ async def test_push_commits_publishes_tests_downloads_and_analyses(
     # Maialen no aceptó p2: no hay repo al que hacer push.
     with pytest.raises(push.PushError, match="no aceptó"):
         await push.simulate_push(assignment=dataset.ASSIGNMENT_P2, owner="maialen-ortiz")
+
+
+async def test_runner_dataset_students_are_never_staff() -> None:
+    cli = _cli(staff=["irakasle-mikel", "ane-urrutia"])
+    members = await cli.staff(dataset.DEMO_ORG, dataset.ACTIVE_CLASSROOM)
+    staff = {member.username for member in members}
+    assert "irakasle-mikel" in staff
+    assert "ane-urrutia" not in staff

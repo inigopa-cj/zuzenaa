@@ -6,7 +6,9 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from zuzenaa.api.analyses import _authorize_owner
-from zuzenaa.api.me import my_assignments
+from zuzenaa.api.me import my_assignments, my_role
+from zuzenaa.api.repos import list_repos
+from zuzenaa.auth import roles
 from zuzenaa.config import settings
 from zuzenaa.db.models import Analysis, Repository, User
 from zuzenaa.db.session import SessionLocal, init_models
@@ -81,7 +83,7 @@ async def test_my_assignments_filters_by_login() -> None:
         )
         await session.commit()
 
-    result = await my_assignments(_user("octocat"))
+    result = await my_assignments(_user("octocat"), _gh([]))
     assert {item.owner for item in result} == {"octocat"}
     assert result[0].analyses == 1
 
@@ -89,3 +91,62 @@ async def test_my_assignments_filters_by_login() -> None:
 def test_my_assignments_requires_session() -> None:
     with TestClient(app) as client:
         assert client.get("/me/assignments").status_code == 401
+
+
+
+async def _repo(org: str, classroom: str, owner: str) -> None:
+    now = now_epoch()
+    async with SessionLocal() as session:
+        session.add(
+            Repository(
+                org=org, classroom=classroom, assignment="a1", owner=owner,
+                repo_full_name=f"{classroom}-a1-{owner}", path=f"/tmp/{owner}",
+                head_sha=None, head_committed_at=None, last_synced_at=now, status="ok",
+                created_at=now, updated_at=now,
+            )
+        )
+        await session.commit()
+
+
+async def test_role_staff_student_and_unknown() -> None:
+    await init_models()
+    await _repo("ro", "rc", "alumna")
+    roles.clear_cache()
+
+    staff = await my_role(_user("irakasle"), _gh(["irakasle"]))
+    assert staff.role == "staff"
+    assert {(r.org, r.classroom) for r in staff.staff_of} >= {("ro", "rc")}
+
+    student = await my_role(_user("alumna"), _gh(["irakasle"]))
+    assert (student.role, student.owns_repos) == ("student", True)
+
+    nobody = await my_role(_user("nadie"), _gh(["irakasle"]))
+    assert nobody.role == "unknown"
+
+
+async def test_staff_can_preview_a_student_but_students_cannot() -> None:
+    await init_models()
+    await _repo("po", "pc", "preview-alumna")
+    await _repo("other-org", "oc", "preview-alumna")
+    roles.clear_cache()
+
+    async def staff_only_in_pc(org: str, classroom: str) -> list[Student]:
+        return [Student(username="tutor")] if (org, classroom) == ("po", "pc") else []
+
+    gh = _gh([])
+    cast(AsyncMock, gh.staff).side_effect = staff_only_in_pc
+    seen = await my_assignments(_user("tutor"), gh, as_login="preview-alumna")
+    # Solo las clases donde quien mira es staff.
+    assert {(i.org, i.classroom) for i in seen} == {("po", "pc")}
+
+    roles.clear_cache()
+    with pytest.raises(HTTPException) as exc:
+        await my_assignments(_user("otra-alumna"), _gh([]), as_login="preview-alumna")
+    assert exc.value.status_code == 403
+
+
+async def test_management_endpoints_are_staff_only() -> None:
+    with pytest.raises(HTTPException) as exc:
+        await list_repos("o", "c", "a", user=_user("alumna"), gh=_gh([]))
+    assert exc.value.status_code == 403
+    assert await list_repos("o", "c", "a", user=_user("tutor"), gh=_gh(["tutor"])) == []

@@ -171,16 +171,33 @@ export type ClassStudentRow = {
 
 export type Me = { login: string; name: string | null; avatar_url: string | null }
 
+/** Rol detectado por el backend (staff = profesorado de alguna clase conocida). */
+export type Role = {
+  login: string
+  role: 'staff' | 'student' | 'unknown'
+  staff_of: { org: string; classroom: string }[]
+  owns_repos: boolean
+}
+
 export type MyAssignment = {
   org: string
   classroom: string
   assignment: string
   owner: string
   repo_full_name: string
+  status: string
   head_sha: string | null
   last_synced_at: number | null
   analyses: number
   last_analysis_at: number | null
+  passed: number | null
+  total: number | null
+  score: number | null
+  max_score: number | null
+  last_commit_at: number | null
+  latest_hint: string | null
+  summary: string
+  alerts: ProgressAlert[]
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -245,7 +262,12 @@ export const api = {
     getJson<StudentProgress>(`${assignmentBase(org, classroom, assignment)}/repos/${owner}/progress`),
   classProgress: (org: string, classroom: string, assignment: string) =>
     getJson<ClassEvolution>(`${assignmentBase(org, classroom, assignment)}/progress`),
-  myAssignments: () => getJson<MyAssignment[]>('/api/me/assignments'),
+  role: () => getJson<Role>('/api/me/role'),
+  /** Entregas del login; con `as`, vista previa del profesorado como ese alumno. */
+  myAssignments: (as?: string | null) =>
+    getJson<MyAssignment[]>(
+      as ? `/api/me/assignments?as=${encodeURIComponent(as)}` : '/api/me/assignments',
+    ),
   /** Solo modo demo: el alumno sube su siguiente revisión (tests + descarga + análisis). */
   demoPush: (org: string, classroom: string, assignment: string, owner: string) =>
     post<PushOut>(`/api/demo/orgs/${org}/classrooms/${classroom}/assignments/${assignment}/repos/${owner}/push`),

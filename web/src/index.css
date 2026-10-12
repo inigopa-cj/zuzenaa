@@ -885,6 +885,89 @@ h3 {
   margin-left: 0.25rem;
 }
 
+/* --- Superficie del alumno --- */
+.preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+.entrega-group {
+  margin-bottom: 1.5rem;
+}
+.entregas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 1rem;
+}
+.entrega {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+.entrega-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.entrega-head h4 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.15rem;
+}
+.entrega p {
+  margin: 0;
+}
+.entrega-hint p {
+  font-size: 0.9rem;
+}
+.entrega .alert-list {
+  margin: 0;
+}
+.entrega-foot {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.meter {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.7rem;
+  align-items: center;
+}
+.meter-track {
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+}
+.meter-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.meter-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.meter-label b {
+  color: var(--ink);
+}
+
 .feedback-sections {
   display: flex;
   flex-direction: column;

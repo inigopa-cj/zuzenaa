@@ -55,8 +55,10 @@ El dataset (`demo/dataset.py`) es la **única fuente de verdad** y no hace I/O:
 
 - **Profesorado**: elegir `ikastola-demo` → `1-maila` → `p1`/`p2` → descargar repos →
   analizar → histórico y progreso por alumno, y pestaña **Evolución de la clase**.
-- **Alumnado**: la vista «Mis clases» muestra las entregas del login que inicie sesión
-  (el seed crea una entrega inyectada para cada usuario de la tabla `users`).
+- **Alumnado**: quien inicia sesión es staff de la demo, **salvo** los alumnos del dataset
+  (`ane-urrutia`, `nerea-mendia`…): entrando como uno de ellos se ve la superficie del alumno
+  (**Mis entregas**). Sin cuentas de GitHub para ellos, lo más cómodo es **«Ver como este
+  alumno»** desde su ficha.
 - **Estados variados**: la entrega no aceptada de Maialen aparece como `error`; las
   revisiones pendientes se pueden analizar en vivo pulsando «Analizar».
 

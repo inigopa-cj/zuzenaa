@@ -2,13 +2,16 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { api, type MyAssignment } from '../api'
 import { fmtDateTime } from '../components/Feedback'
+import { useViewer } from '../components/Viewer'
 import { ErrorNote } from './ClassroomsPage'
 
+/** Superficie del alumno: una tarjeta por entrega con tests, pista actual y avisos. */
 export function MyClassesPage() {
+  const { previewAs, studentLogin } = useViewer()
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
   const mine = useQuery({
-    queryKey: ['myAssignments'],
-    queryFn: api.myAssignments,
+    queryKey: ['myAssignments', previewAs],
+    queryFn: () => api.myAssignments(previewAs),
     retry: false,
     enabled: me.isSuccess,
   })
@@ -18,7 +21,7 @@ export function MyClassesPage() {
       <section className="empty">
         <h2>Inicia sesión</h2>
         <p>
-          Entra con GitHub para ver tus clases, tus entregas y todo tu feedback.{' '}
+          Entra con GitHub para ver tus entregas, tus tests y todo tu feedback.{' '}
           <a href="/api/auth/login">Iniciar sesión</a>.
         </p>
       </section>
@@ -31,73 +34,122 @@ export function MyClassesPage() {
   return (
     <section>
       <header className="page-head">
-        <h2>Mis clases</h2>
+        <h2>Mis entregas</h2>
         <p className="muted">
-          {me.isSuccess ? (
+          {studentLogin ? (
             <>
-              <code>{me.data.login}</code> ·{' '}
+              <code>{studentLogin}</code> ·{' '}
             </>
           ) : null}
-          tus entregas y el feedback de cada revisión.
+          cómo van tus tests, la pista de tu última revisión y tu progreso.
         </p>
       </header>
 
-      {mine.isPending && <p className="muted">Cargando…</p>}
+      {mine.isPending && me.isSuccess && <p className="muted">Cargando…</p>}
       {mine.isError && <ErrorNote message={mine.error.message} />}
       {mine.isSuccess && items.length === 0 && (
         <section className="empty">
           <h2>Sin entregas todavía</h2>
           <p>
-            Cuando tu profesorado descargue y analice tu entrega, aparecerá aquí con su feedback.
+            Cuando tu profesorado descargue tu entrega, aparecerá aquí. Cada push que hagas se
+            analizará y verás su feedback.
           </p>
         </section>
       )}
 
       {groups.map((group) => (
-        <div key={`${group.org}/${group.classroom}`}>
+        <section key={`${group.org}/${group.classroom}`} className="entrega-group">
           <h3>
             {group.classroom} <span className="dim">· {group.org}</span>
           </h3>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Assignment</th>
-                <th>Repo</th>
-                <th>Revisiones</th>
-                <th>Última</th>
-                <th aria-label="Acciones" />
-              </tr>
-            </thead>
-            <tbody>
-              {group.items.map((item) => (
-                <tr key={item.repo_full_name}>
-                  <td>{item.assignment}</td>
-                  <td>
-                    <code>{item.repo_full_name}</code>
-                  </td>
-                  <td>{item.analyses}</td>
-                  <td>{item.last_analysis_at ? fmtDateTime(item.last_analysis_at) : '—'}</td>
-                  <td>
-                    <Link
-                      className="link-action"
-                      to="/mis-clases/$org/$classroom/$assignment/$owner"
-                      params={{
-                        org: item.org,
-                        classroom: item.classroom,
-                        assignment: item.assignment,
-                        owner: item.owner,
-                      }}
-                    >
-                      Ver feedback
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <div className="entregas">
+            {group.items.map((item) => (
+              <AssignmentCard key={item.repo_full_name} item={item} />
+            ))}
+          </div>
+        </section>
       ))}
     </section>
+  )
+}
+
+function AssignmentCard({ item }: { item: MyAssignment }) {
+  const notAccepted = item.status === 'error'
+  const hasTests = item.total !== null && item.max_score !== null
+  const ratio = hasTests && item.max_score ? (item.score ?? 0) / item.max_score : 0
+  const allGreen = hasTests && item.passed === item.total
+
+  return (
+    <article className="entrega">
+      <header className="entrega-head">
+        <h4>{item.assignment}</h4>
+        {hasTests ? (
+          <span className={allGreen ? 'badge' : 'badge badge-alert'}>
+            tests {item.passed}/{item.total}
+          </span>
+        ) : null}
+      </header>
+
+      {notAccepted ? (
+        <p className="muted">
+          Todavía no hay repo para esta entrega: acepta el assignment en Classroom 50 y haz tu
+          primer push.
+        </p>
+      ) : (
+        <>
+          {hasTests ? (
+            <div className="meter" title={`${item.score}/${item.max_score} puntos`}>
+              <span className="meter-track" aria-hidden="true">
+                <span className="meter-bar" style={{ width: `${Math.max(ratio * 100, 1)}%` }} />
+              </span>
+              <span className="meter-label">
+                <b>{item.score}</b>/{item.max_score} puntos
+              </span>
+            </div>
+          ) : (
+            <p className="muted">Sin resultado de tests todavía.</p>
+          )}
+
+          {item.latest_hint ? (
+            <div className="fb-hint entrega-hint">
+              <span className="fb-label">Tu pista ahora</span>
+              <p>{item.latest_hint}</p>
+            </div>
+          ) : null}
+
+          {item.alerts.length > 0 ? (
+            <ul className="alert-list">
+              {item.alerts.map((alert) => (
+                <li key={alert.kind}>
+                  <span className="badge badge-alert">aviso</span> {alert.text}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      )}
+
+      <footer className="entrega-foot">
+        <span className="dim">
+          {item.analyses} revisión(es)
+          {item.last_commit_at ? ` · último commit ${fmtDateTime(item.last_commit_at)}` : ''}
+        </span>
+        {!notAccepted ? (
+          <Link
+            className="link-action"
+            to="/mis-clases/$org/$classroom/$assignment/$owner"
+            params={{
+              org: item.org,
+              classroom: item.classroom,
+              assignment: item.assignment,
+              owner: item.owner,
+            }}
+          >
+            Ver mi progreso →
+          </Link>
+        ) : null}
+      </footer>
+    </article>
   )
 }
 

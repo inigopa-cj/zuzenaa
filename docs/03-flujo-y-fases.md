@@ -17,7 +17,7 @@
 | Paso | Acción | Dónde |
 | --- | --- | --- |
 | 1 | Login con GitHub | **Web** (OAuth) |
-| 2 | Ver sus clases/assignments | **Web** (BD: lo que el profesor ya descargó/analizó) |
+| 2 | Llega a **Mis entregas** (rol detectado): tests, puntos, pista actual y avisos por entrega | **Web** (BD: lo que el profesor ya descargó/analizó) |
 | 3 | Por repo: ver **todo el histórico** de feedback (fecha + commit) y el resumen de su progreso | **Web** |
 
 ## 3. Qué sigue ocurriendo en Classroom 50 / GitHub
@@ -45,7 +45,8 @@ ZuzenAA solo **lee** ese estado para saber qué assignments y alumnos hay.
 - **Ficha del alumno**: **Progreso** (resumen de evolución: curva de tests, regresiones, pistas
   repetidas, ritmo de commits + cronología) e **Histórico** (feedback completo por commit).
 - **Ajustes**: sesión/OAuth/almacenamiento.
-- Superficie alumno: mismas entidades filtradas a sí mismo, en **solo lectura**.
+- **Mis entregas** (alumno): panel con una tarjeta por entrega → ficha en **solo lectura**.
+- Vista previa del profesorado: «Ver como este alumno» con banner y «Volver a profesorado».
 
 ## 5. Fases
 
@@ -65,6 +66,8 @@ ZuzenAA solo **lee** ese estado para saber qué assignments y alumnos hay.
 
 ### Fase R2 — Superficie alumno
 - El alumno ve sus clases/assignments y **todo su histórico** y progreso.
+- Hecho: detección de rol, panel **Mis entregas**, navegación propia, gestión solo para staff y
+  vista previa del profesorado.
 
 **Criterio:** un alumno real ve sus feedbacks ordenados por fecha.
 
@@ -128,7 +131,8 @@ objetivo.
 - El descubrimiento es **desde nuestra BD** (solo lo que el profesor ya descargó/analizó); ampliar a
   roster/teams si el CLI se lo permite al alumno.
 - **Paginación** y agrupado por término/sección cuando crezca el histórico.
-- **Detección automática de rol** (profesor/alumno) para mostrar la navegación adecuada.
+- ~~Detección automática de rol~~: hecho (`GET /me/role`). Pendiente: rol `unknown` (sin datos
+  aún) se muestra como profesorado; invalidar la caché de rol al cambiar el staff en Classroom 50.
 
 ### R3 y R5
 - R3: presupuesto LLM, retención y compresión de snapshots, (opcional) almacenamiento MinIO/S3.

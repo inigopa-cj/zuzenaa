@@ -6,8 +6,8 @@ Ver ``docs/06-datos-de-prueba.md``. Nunca en producción.
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from zuzenaa.api.analyses import AnalyzeOutcomeOut, TestResultsOut
-from zuzenaa.api.deps import OptionalUserDep
+from zuzenaa.api.analyses import AnalyzeOutcomeOut, TestResultsOut, authorize_staff
+from zuzenaa.api.deps import GhCliDep, OptionalUserDep
 from zuzenaa.config import settings
 
 router = APIRouter(prefix="/demo", tags=["demo"])
@@ -27,13 +27,19 @@ class PushOut(BaseModel):
     response_model=PushOut,
 )
 async def simulate_push(
-    org: str, classroom: str, assignment: str, owner: str, user: OptionalUserDep
+    org: str, classroom: str, assignment: str, owner: str, user: OptionalUserDep, gh: GhCliDep
 ) -> PushOut:
     """Simula que ``owner`` sube su siguiente revisión: tests, descarga y análisis."""
     if not settings.demo_mode:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
-    if user is None and not settings.allow_env_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado.")
+    # Simula el push de un alumno: es una herramienta del profesorado.
+    await authorize_staff(
+        org=org,
+        classroom=classroom,
+        user=user,
+        gh=gh,
+        denied="Solo el profesorado puede simular pushes.",
+    )
 
     from zuzenaa.demo import dataset
     from zuzenaa.demo.push import PushError

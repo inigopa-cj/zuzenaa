@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, Navigate, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   createContext,
   useContext,
@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { api } from '../api'
 import { classroom50Org, useClassroom50 } from '../classroom50'
+import { useViewer } from './Viewer'
 
 const ORG_KEY = 'zuzenaa.org'
 
@@ -141,7 +142,35 @@ function Classroom50Link() {
   )
 }
 
+function PreviewBanner() {
+  const { previewAs, setPreviewAs } = useViewer()
+  const navigate = useNavigate()
+  if (!previewAs) return null
+  return (
+    <div className="preview-banner" role="status">
+      <span>
+        Vista previa: así ve la plataforma <code>{previewAs}</code>. Solo lectura.
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          setPreviewAs(null)
+          void navigate({ to: '/' })
+        }}
+      >
+        Volver a profesorado
+      </button>
+    </div>
+  )
+}
+
 export function AppLayout({ children }: { children: ReactNode }) {
+  const { studentView, role } = useViewer()
+  const teacherNav = !studentView
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  // Las páginas de profesorado no son para el alumno: el backend ya deniega los datos,
+  // y aquí se le lleva a su panel en vez de enseñarle botones que no puede usar.
+  const teacherOnly = pathname.startsWith('/classrooms') || pathname.startsWith('/settings')
   return (
     <div className="shell">
       <aside className="rail">
@@ -151,22 +180,27 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </Link>
 
         <nav className="rail-nav">
-          <RailLink to="/" exact label="Clases" icon="classes" />
-          <RailLink to="/mis-clases" label="Mis clases" icon="student" />
-          <RailLink to="/settings" label="Ajustes" icon="settings" />
+          {teacherNav ? <RailLink to="/" exact label="Clases" icon="classes" /> : null}
+          {studentView || role?.role !== 'staff' ? (
+            <RailLink to="/mis-clases" label="Mis entregas" icon="student" />
+          ) : null}
+          {teacherNav ? <RailLink to="/settings" label="Ajustes" icon="settings" /> : null}
           <Classroom50Link />
         </nav>
 
-        <div className="rail-foot">
-          <OrgPicker />
-        </div>
+        {teacherNav ? (
+          <div className="rail-foot">
+            <OrgPicker />
+          </div>
+        ) : null}
       </aside>
       <div className="content">
         <header className="topbar">
           <span className="tagline">Evaluación formativa sobre Classroom 50</span>
           <Session />
         </header>
-        {children}
+        <PreviewBanner />
+        {studentView && teacherOnly ? <Navigate to="/mis-clases" /> : children}
       </div>
     </div>
   )

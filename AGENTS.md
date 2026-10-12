@@ -46,8 +46,12 @@ Docker Compose. Comandos abajo.
   (progreso del alumno; misma autorización que el histórico) y `GET .../assignments/{a}/progress`
   (evolución de la clase; **solo staff**). Se calcula al leer sobre `analyses` + `git log`; la
   vista de clase **agrega** el progreso de cada alumno (una sola fuente de verdad).
-- **Superficie alumno** (`api/me.py`): `GET /me/assignments` (descubrimiento desde la BD: lo que el
-  profesor ya descargó/analizó para el login).
+- **Superficie alumno** (`api/me.py`): `GET /me/role` (rol detectado: `staff` si está en el staff
+  de alguna clase conocida, `student` si solo tiene entregas, `unknown` si nada; `auth/roles.py`,
+  caché 5 min) y `GET /me/assignments` (descubrimiento desde la BD + resumen de progreso por
+  entrega; `?as=<login>` = vista previa del profesorado, solo sus clases).
+- **Gestión solo para staff**: `GET .../repos`, `POST .../repos/sync`, `POST .../analysis` y el
+  push de la demo exigen ser staff de la clase (`api/analyses.py: require_staff`).
 - **Agente** (`agent/`): worker con proveedor `mock` por defecto (`ZUZENAA_LLM_PROVIDER`);
   guardarraíles; escribe snapshot + `feedback.md` + `analyses.json` y la fila `analyses`.
   El contexto es **real**: `agent/context.py` resume el clon local (árbol, lenguajes, señales)

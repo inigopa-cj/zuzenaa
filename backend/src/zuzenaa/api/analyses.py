@@ -111,6 +111,17 @@ async def authorize_staff(
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=denied)
 
 
+async def require_staff(*, org: str, classroom: str, user: User | None, gh: GhCli) -> None:
+    """Endpoints de gestión (repos, descarga, análisis): solo profesorado de la clase."""
+    await authorize_staff(
+        org=org,
+        classroom=classroom,
+        user=user,
+        gh=gh,
+        denied="Solo el profesorado de la clase puede gestionar las entregas.",
+    )
+
+
 def _payload(analysis: Analysis) -> dict[str, object] | None:
     try:
         payload = json.loads(analysis.feedback_json)
@@ -157,9 +168,16 @@ async def _repositories(
 
 @router.post("/analysis", response_model=list[AnalyzeOutcomeOut])
 async def run_analysis(
-    org: str, classroom: str, assignment: str, payload: AnalyzeRequest, token: GithubTokenDep
+    org: str,
+    classroom: str,
+    assignment: str,
+    payload: AnalyzeRequest,
+    token: GithubTokenDep,
+    user: OptionalUserDep,
+    gh: GhCliDep,
 ) -> list[AnalyzeOutcomeOut]:
     """Descarga el último push y lo analiza (un alumno o todos los ya descargados)."""
+    await require_staff(org=org, classroom=classroom, user=user, gh=gh)
     repos = await _repositories(org, classroom, assignment, payload.owner)
     if not repos:
         raise HTTPException(

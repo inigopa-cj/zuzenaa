@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from zuzenaa.api.deps import GhCliDep
+from zuzenaa.api.analyses import require_staff
+from zuzenaa.api.deps import GhCliDep, OptionalUserDep
 from zuzenaa.config import settings
 from zuzenaa.db.models import Repository
 from zuzenaa.db.session import SessionLocal
@@ -38,8 +39,9 @@ class SyncOut(BaseModel):
 
 @router.get("/repos", response_model=list[RepositoryOut])
 async def list_repos(
-    org: str, classroom: str, assignment: str
+    org: str, classroom: str, assignment: str, user: OptionalUserDep, gh: GhCliDep
 ) -> list[RepositoryOut]:
+    await require_staff(org=org, classroom=classroom, user=user, gh=gh)
     async with SessionLocal() as session:
         stmt = (
             select(Repository)
@@ -68,8 +70,9 @@ async def list_repos(
 
 @router.post("/repos/sync", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
 async def sync_repos(
-    org: str, classroom: str, assignment: str, gh: GhCliDep
+    org: str, classroom: str, assignment: str, user: OptionalUserDep, gh: GhCliDep
 ) -> SyncOut:
+    await require_staff(org=org, classroom=classroom, user=user, gh=gh)
     try:
         students = await gh.roster(org, classroom)
     except GhError as exc:

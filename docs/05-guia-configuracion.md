@@ -171,8 +171,8 @@ del navegador) y la cabecera superior mostrará tu usuario.
 5. Los enlaces **«Ver en Classroom 50»** abren la clase/assignment/assignment correspondiente en
    `classroom50.org`.
 
-El alumnado entra con su propia cuenta y ve **solo lo suyo** en **Mis clases** (lo que el
-profesorado ya haya descargado/analizado).
+El alumnado entra con su propia cuenta y la web detecta su rol: ve **solo lo suyo** en **Mis
+entregas** (lo que el profesorado ya haya descargado/analizado), sin las opciones de gestión.
 
 ---
 

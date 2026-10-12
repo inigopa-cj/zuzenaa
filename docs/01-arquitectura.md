@@ -39,8 +39,12 @@ flowchart LR
 
 - **Superficie profesor**: elegir org/clase/assignment; **Descargar repos**; **Analizar**; ver
   **histórico** por alumno y **progreso**.
-- **Superficie alumno**: sus clases/assignments; por repo, **todo su histórico** de feedback
-  (fecha + commit) y progreso.
+- **Superficie alumno**: la web detecta el rol (`GET /me/role`) y el alumno entra a **Mis
+  entregas** (tarjetas con tests, puntos, pista actual y avisos) → ficha en solo lectura con su
+  progreso y **todo su histórico**. Sin menú de profesorado; las rutas de gestión le redirigen a
+  su panel y el backend le deniega los datos.
+- **Vista previa**: el profesorado pulsa «Ver como este alumno» en una ficha y ve la superficie
+  del alumno (`/me/assignments?as=`), limitada a las clases donde es staff.
 - Navegación: Clases → Clase → Assignment (Entregas / **Evolución de la clase**) → Ficha del
   alumno (Progreso / Histórico) y Ajustes.
 

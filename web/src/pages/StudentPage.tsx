@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { api, type Analysis } from '../api'
 import { useOrg } from '../components/AppLayout'
 import { FeedbackBody, TestsBadge, fmtDateTime, shortSha } from '../components/Feedback'
 import { StudentProgressPanel } from '../components/Progress'
+import { useViewer } from '../components/Viewer'
 import { ErrorNote } from './ClassroomsPage'
 
 export function StudentPage({
@@ -23,10 +24,18 @@ export function StudentPage({
   const studentSurface = orgProp !== undefined
   const [tab, setTab] = useState<'progreso' | 'historico'>('progreso')
 
+  const { previewAs, setPreviewAs } = useViewer()
+  const navigate = useNavigate()
+  // La lista de repos es de profesorado; el alumno lee su entrega de /me/assignments.
   const repos = useQuery({
     queryKey: ['repos', org, classroom, assignment],
     queryFn: () => api.repos(org, classroom, assignment),
-    enabled: org.length > 0,
+    enabled: org.length > 0 && !studentSurface,
+  })
+  const mine = useQuery({
+    queryKey: ['myAssignments', previewAs],
+    queryFn: () => api.myAssignments(previewAs),
+    enabled: studentSurface,
   })
   const history = useQuery({
     queryKey: ['history', org, classroom, assignment, owner],
@@ -40,7 +49,13 @@ export function StudentPage({
     enabled: org.length > 0,
   })
 
-  const repo = repos.data?.find((item) => item.owner === owner) ?? null
+  const repo =
+    (studentSurface
+      ? mine.data?.find(
+          (item) =>
+            item.owner === owner && item.classroom === classroom && item.assignment === assignment,
+        )
+      : repos.data?.find((item) => item.owner === owner)) ?? null
   const reviews = history.data ?? []
   const ascending = [...reviews].reverse()
 
@@ -48,7 +63,7 @@ export function StudentPage({
     <section>
       <nav className="crumbs">
         {studentSurface ? (
-          <Link to="/mis-clases">Mis clases</Link>
+          <Link to="/mis-clases">Mis entregas</Link>
         ) : (
           <Link to="/">Clases</Link>
         )}
@@ -67,7 +82,23 @@ export function StudentPage({
       </nav>
 
       <header className="page-head">
-        <h2>{owner}</h2>
+        <div className="head-row">
+          <h2>{studentSurface ? assignment : owner}</h2>
+          {!studentSurface ? (
+            <div className="actions">
+              <button
+                type="button"
+                title="Ver la plataforma tal como la ve este alumno (solo lectura)"
+                onClick={() => {
+                  setPreviewAs(owner)
+                  void navigate({ to: '/mis-clases' })
+                }}
+              >
+                Ver como este alumno
+              </button>
+            </div>
+          ) : null}
+        </div>
         <p className="muted">
           {repo ? (
             <>

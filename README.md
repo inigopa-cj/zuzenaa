@@ -76,9 +76,15 @@ El feedback **vive solo en esta plataforma**; no se publica en GitHub.
 
 ### Alumnado
 
-- Entra con GitHub y ve **Mis clases**: sus entregas ya descargadas/analizadas.
-- Consulta **todo su histórico** de feedback y el resumen de su progreso, en solo lectura.
-- Un alumno **solo ve lo suyo** (autorización por sesión).
+- Entra con GitHub y la web detecta su **rol**: va directo a **Mis entregas**, sin el menú del
+  profesorado.
+- **Panel de entregas**: una tarjeta por assignment con tests que pasan, puntos, la **pista de su
+  última revisión** y avisos (p. ej. «10 días sin commits y quedan tests por pasar»).
+- Desde cada tarjeta, **Ver mi progreso**: resumen de su evolución y **todo su histórico** de
+  feedback, en solo lectura.
+- Un alumno **solo ve lo suyo**: el backend deniega las páginas de gestión (repos, descargar,
+  analizar, evolución de la clase) a quien no es staff de la clase.
+- El profesorado puede pulsar **«Ver como este alumno»** en una ficha para comprobar qué ve.
 
 ## Capturas
 
@@ -209,9 +215,10 @@ Referencia completa y puesta en marcha: [`docs/05-guia-configuracion.md`](docs/0
 ### Alumnado
 
 1. Entra con GitHub.
-2. Abre **Mis clases**: aparecen las entregas que el profesorado ya descargó/analizó.
-3. En **Ver feedback**, consulta la pestaña **Progreso** (cronología) y **Histórico** (feedback
-   completo por commit y fecha).
+2. Llega a **Mis entregas**: una tarjeta por cada entrega que el profesorado ya descargó, con
+   sus tests, sus puntos, la pista actual y los avisos.
+3. En **Ver mi progreso**, consulta la pestaña **Progreso** (resumen y cronología) e
+   **Histórico** (feedback completo por commit y fecha).
 
 ### Casos de uso habituales
 
@@ -224,7 +231,9 @@ Referencia completa y puesta en marcha: [`docs/05-guia-configuracion.md`](docs/0
 - **Reanálisis tras un commit nuevo**: **Analizar** (descarga el último push antes de analizar;
   si el commit no cambió, devuelve el análisis guardado).
 - **Saltar a Classroom 50**: enlaces **«Ver en Classroom 50»** por clase y assignment.
-- **El alumno ve lo suyo**: **Mis clases** (solo lectura).
+- **El alumno ve lo suyo**: **Mis entregas** (solo lectura).
+- **Comprobar qué ve un alumno**: ficha del alumno → **Ver como este alumno** → banner de vista
+  previa → **Volver a profesorado**.
 
 ## Calidad y tests
 

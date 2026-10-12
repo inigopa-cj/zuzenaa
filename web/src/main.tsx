@@ -4,6 +4,7 @@ import {
   createRoute,
   createRouter,
   Link,
+  Navigate,
   Outlet,
   RouterProvider,
   useParams,
@@ -12,6 +13,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { AppLayout, OrgProvider } from './components/AppLayout'
+import { useViewer, ViewerProvider } from './components/Viewer'
 import { AssignmentPage } from './pages/AssignmentPage'
 import { ClassroomPage } from './pages/ClassroomPage'
 import { ClassroomsPage } from './pages/ClassroomsPage'
@@ -22,9 +24,11 @@ import { StudentPage } from './pages/StudentPage'
 const rootRoute = createRootRoute({
   component: () => (
     <OrgProvider>
-      <AppLayout>
-        <Outlet />
-      </AppLayout>
+      <ViewerProvider>
+        <AppLayout>
+          <Outlet />
+        </AppLayout>
+      </ViewerProvider>
     </OrgProvider>
   ),
 })
@@ -32,8 +36,14 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: ClassroomsPage,
+  component: HomePage,
 })
+
+/** El alumnado entra directamente a su panel de entregas. */
+function HomePage() {
+  const { studentView } = useViewer()
+  return studentView ? <Navigate to="/mis-clases" /> : <ClassroomsPage />
+}
 
 const classroomRoute = createRoute({
   getParentRoute: () => rootRoute,

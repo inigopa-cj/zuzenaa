@@ -6,8 +6,9 @@ resumen humano por stderr) que daría el CLI real. Solo se emulan los comandos q
 usa ZuzenAA; cualquier otro falla con código 1, como haría ``gh`` sin red.
 
 El staff de la clase es el ficticio del dataset **más** los logins de la tabla
-``users``, leídos en cada petición: así quien inicie sesión puede ver la ficha de
-cualquier alumno de la demo sin volver a sembrar.
+``users`` (salvo los alumnos del dataset), leídos en cada petición: así quien inicie
+sesión puede ver la ficha de cualquier alumno de la demo sin volver a sembrar, y
+quien entre como un alumno ficticio ve la superficie del alumno.
 """
 
 from __future__ import annotations
@@ -129,7 +130,14 @@ async def _members(
                 continue
             logins = [member["username"] for member in demo.staff if member["role"] == role]
             if role == "instructor":
-                logins.extend(login for login in await provider() if login not in logins)
+                # Quien inicia sesión es staff, salvo los alumnos del dataset: así se
+                # puede probar la superficie del alumno entrando como uno de ellos.
+                dataset_students = {student["username"] for student in demo.students}
+                logins.extend(
+                    login
+                    for login in await provider()
+                    if login not in logins and login not in dataset_students
+                )
             return _ok([{"login": login} for login in logins])
     return _not_found()
 

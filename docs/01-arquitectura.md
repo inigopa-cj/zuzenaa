@@ -154,6 +154,29 @@ flowchart TD
 
 ## 4. Seguridad y coste
 
+### 4.1 Privacidad del alumnado
+
+```mermaid
+flowchart LR
+    C50[Classroom 50<br/>login + nombre] -->|roster| P[pseudonyms<br/>3.URGAA · nombre cifrado]
+    P --> W[Web / API<br/>solo seudónimos]
+    R[repo local<br/>código con nombres] --> S[scrub<br/>login/nombre → 3.URGAA]
+    P --> S
+    S -->|sin fugas| A[Agente / LLM]
+    S -.->|quedan datos personales| X[análisis bloqueado]
+```
+
+- **Seudónimo por clase** `<posición>.<AP1><AP2><N>`, fijado la primera vez y estable.
+- **La identidad nunca sale hacia el LLM**: limpieza del contexto + verificación final.
+- **Web**: solo seudónimos (también en URLs, nombres de repo y mensajes de error de git). El
+  alumno no ve su login ni en la cabecera.
+- **«Mostrar identidad»**: solo staff, bajo demanda, registrado (`identity_reveals`); no se guarda
+  en la caché de la web.
+- Límite: unas iniciales con posición son un **seudónimo**, no un anonimato total; quien conozca la
+  lista de clase puede deducir la identidad.
+
+### 4.2 Resto
+
 - El token del profesor se **cifra en reposo**; cada petición usa su identidad.
 - El **LLM** se llama desde el **gateway del backend**; la clave vive en el servidor, nunca en repos
   de alumnos.

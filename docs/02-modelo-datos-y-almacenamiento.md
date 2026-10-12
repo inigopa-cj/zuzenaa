@@ -70,6 +70,18 @@ Un análisis (feedback) sobre un commit.
 | `created_at` | fecha del análisis |
 | `forced` | si fue reanálisis forzado |
 
+### `pseudonyms`
+Seudónimo estable de cada alumno **por clase** (ver docs/01 §4.1).
+| Campo | Notas |
+| --- | --- |
+| `org`, `classroom`, `login` | únicos juntos; `login` en minúsculas, nunca sale del backend |
+| `position` | n.º en la lista de clase (fijado la primera vez; únicos por clase) |
+| `alias` | `<posición>.<AP1><AP2><N>`, p. ej. `3.URGAA` (único por clase) |
+| `encrypted_name` | `nombre|apellidos` cifrado (Fernet de `ZUZENAA_SECRET_KEY`) |
+
+### `identity_reveals`
+Registro de cada «Mostrar identidad»: `org`, `classroom`, `alias`, `viewer_login`, `created_at`.
+
 ### `sync_runs` / `analysis_runs` (opcional)
 Estado y progreso de las descargas y de los análisis masivos.
 

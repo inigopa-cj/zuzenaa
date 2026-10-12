@@ -4,7 +4,7 @@ Timestamps are stored as epoch seconds (portable across Postgres and SQLite,
 and free of timezone-coercion surprises).
 """
 
-from sqlalchemy import BigInteger, ForeignKey, String, Text
+from sqlalchemy import BigInteger, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from zuzenaa.db.base import Base
@@ -81,6 +81,45 @@ class Analysis(Base):
     evolution: Mapped[str | None] = mapped_column(Text)
     tokens_used: Mapped[int] = mapped_column(default=0)
     forced: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[int] = mapped_column(BigInteger, index=True)
+
+
+class Pseudonym(Base):
+    """Seudónimo estable de un alumno dentro de una clase.
+
+    La web y el agente solo ven ``alias`` (p. ej. ``3.URGAA``). El login hace falta
+    para clonar desde Classroom 50 y nunca sale del backend; el nombre real se guarda
+    **cifrado** (para «Mostrar identidad» y para borrarlo del código antes del agente).
+    """
+
+    __tablename__ = "pseudonyms"
+    __table_args__ = (
+        UniqueConstraint("org", "classroom", "login", name="uq_pseudonym_login"),
+        UniqueConstraint("org", "classroom", "alias", name="uq_pseudonym_alias"),
+        UniqueConstraint("org", "classroom", "position", name="uq_pseudonym_position"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org: Mapped[str] = mapped_column(String(100), index=True)
+    classroom: Mapped[str] = mapped_column(String(100))
+    login: Mapped[str] = mapped_column(String(100))  # en minúsculas
+    position: Mapped[int] = mapped_column()
+    alias: Mapped[str] = mapped_column(String(32))
+    encrypted_name: Mapped[str | None] = mapped_column(Text)  # "nombre|apellidos" cifrado
+    created_at: Mapped[int] = mapped_column(BigInteger)
+    updated_at: Mapped[int] = mapped_column(BigInteger)
+
+
+class IdentityReveal(Base):
+    """Registro de cada vez que el staff muestra la identidad real de un seudónimo."""
+
+    __tablename__ = "identity_reveals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org: Mapped[str] = mapped_column(String(100), index=True)
+    classroom: Mapped[str] = mapped_column(String(100))
+    alias: Mapped[str] = mapped_column(String(32))
+    viewer_login: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[int] = mapped_column(BigInteger, index=True)
 
 

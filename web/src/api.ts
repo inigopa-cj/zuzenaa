@@ -32,10 +32,12 @@ export type Student = {
   role: string | null
 }
 
+/** `owner` es siempre el seudónimo del alumno en su clase (p. ej. 3.URGAA). */
 export type Repository = {
   id: number
   owner: string
-  repo_full_name: string
+  /** <clase>-<assignment>-<seudónimo>: nunca el nombre real del repo. */
+  repo_label: string
   head_sha: string | null
   head_committed_at: number | null
   last_synced_at: number | null
@@ -173,10 +175,16 @@ export type Me = { login: string; name: string | null; avatar_url: string | null
 
 /** Rol detectado por el backend (staff = profesorado de alguna clase conocida). */
 export type Role = {
-  login: string
   role: 'staff' | 'student' | 'unknown'
   staff_of: { org: string; classroom: string }[]
   owns_repos: boolean
+}
+
+export type Identity = {
+  alias: string
+  login: string
+  first_name: string | null
+  last_name: string | null
 }
 
 export type MyAssignment = {
@@ -184,7 +192,8 @@ export type MyAssignment = {
   classroom: string
   assignment: string
   owner: string
-  repo_full_name: string
+  /** <clase>-<assignment>-<seudónimo>: nunca el nombre real del repo. */
+  repo_label: string
   status: string
   head_sha: string | null
   last_synced_at: number | null
@@ -263,11 +272,16 @@ export const api = {
   classProgress: (org: string, classroom: string, assignment: string) =>
     getJson<ClassEvolution>(`${assignmentBase(org, classroom, assignment)}/progress`),
   role: () => getJson<Role>('/api/me/role'),
-  /** Entregas del login; con `as`, vista previa del profesorado como ese alumno. */
-  myAssignments: (as?: string | null) =>
+  /** Entregas propias; con `preview`, vista previa del profesorado como ese alumno. */
+  myAssignments: (preview?: { alias: string; org: string; classroom: string } | null) =>
     getJson<MyAssignment[]>(
-      as ? `/api/me/assignments?as=${encodeURIComponent(as)}` : '/api/me/assignments',
+      preview
+        ? `/api/me/assignments?${new URLSearchParams({ as: preview.alias, org: preview.org, classroom: preview.classroom })}`
+        : '/api/me/assignments',
     ),
+  /** Solo staff y queda registrado: la única forma de ver quién hay tras un seudónimo. */
+  identity: (org: string, classroom: string, assignment: string, owner: string) =>
+    getJson<Identity>(`${assignmentBase(org, classroom, assignment)}/repos/${owner}/identity`),
   /** Solo modo demo: el alumno sube su siguiente revisión (tests + descarga + análisis). */
   demoPush: (org: string, classroom: string, assignment: string, owner: string) =>
     post<PushOut>(`/api/demo/orgs/${org}/classrooms/${classroom}/assignments/${assignment}/repos/${owner}/push`),

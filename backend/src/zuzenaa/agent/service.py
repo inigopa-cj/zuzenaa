@@ -19,6 +19,8 @@ from zuzenaa.config import settings
 from zuzenaa.db.models import Analysis, Repository
 from zuzenaa.db.session import SessionLocal
 from zuzenaa.github.results import load_test_results
+from zuzenaa.privacy import pseudonyms
+from zuzenaa.privacy.scrub import leaks, scrub
 from zuzenaa.repos import paths
 from zuzenaa.repos import service as repo_service
 from zuzenaa.util import now_epoch
@@ -36,6 +38,7 @@ class AnalyzeOutcome:
 def _build_context(
     *,
     repo: Repository,
+    alias: str,
     evolution: str | None,
     code: dict[str, object],
     tests: dict[str, object] | None,
@@ -44,7 +47,7 @@ def _build_context(
     return {
         "classroom": repo.classroom,
         "assignment": repo.assignment,
-        "owner": repo.owner,
+        "owner": alias,  # nunca el login: la identidad no sale del backend
         "commit": repo.head_sha,
         "evolution": evolution,
         "repo": code,
@@ -151,16 +154,31 @@ async def analyze_repository(
     )
     tests = test_results.to_dict() if test_results is not None else None
 
-    worker = AgentWorker(get_provider())
-    result = await worker.run(
+    # Privacidad: el agente solo ve el seudónimo. Se sustituyen login y nombre en todo
+    # el contexto (código, diff, rutas...) y se verifica que no quede ninguno.
+    alias = await pseudonyms.alias_for(repo.org, repo.classroom, repo.owner)
+    terms = await pseudonyms.personal_terms(repo.org, repo.classroom, repo.owner)
+    context = scrub(
         _build_context(
             repo=repo,
+            alias=alias,
             evolution=evolution,
             code=code_context,
             tests=tests,
             previous_tests=_stored_tests(previous) if previous is not None else None,
-        )
+        ),
+        terms,
+        alias,
     )
+    if leaks(context, terms):
+        return AnalyzeOutcome(
+            owner=repo.owner,
+            status="blocked",
+            reason="el contexto contenía datos personales del alumno; no se envía al agente",
+        )
+
+    worker = AgentWorker(get_provider())
+    result = await worker.run(context if isinstance(context, dict) else {})
     if not result.posted:
         return AnalyzeOutcome(
             owner=repo.owner, status="blocked", reason=result.reason

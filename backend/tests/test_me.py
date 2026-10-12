@@ -15,6 +15,7 @@ from zuzenaa.db.session import SessionLocal, init_models
 from zuzenaa.github.cli import GhCli
 from zuzenaa.github.models import Student
 from zuzenaa.main import app
+from zuzenaa.privacy import pseudonyms
 from zuzenaa.util import now_epoch
 
 
@@ -84,7 +85,10 @@ async def test_my_assignments_filters_by_login() -> None:
         await session.commit()
 
     result = await my_assignments(_user("octocat"), _gh([]))
-    assert {item.owner for item in result} == {"octocat"}
+    # Solo lo suyo, y con seudónimo: ni el login ni el nombre salen hacia la web.
+    assert len(result) == 1
+    assert result[0].owner == await pseudonyms.alias_for("o", "c1", "octocat")
+    assert "octocat" not in result[0].repo_label
     assert result[0].analyses == 1
 
 
@@ -135,13 +139,23 @@ async def test_staff_can_preview_a_student_but_students_cannot() -> None:
 
     gh = _gh([])
     cast(AsyncMock, gh.staff).side_effect = staff_only_in_pc
-    seen = await my_assignments(_user("tutor"), gh, as_login="preview-alumna")
-    # Solo las clases donde quien mira es staff.
+    alias = await pseudonyms.alias_for("po", "pc", "preview-alumna")
+    seen = await my_assignments(_user("tutor"), gh, as_alias=alias, org="po", classroom="pc")
+    # Solo las clases donde quien mira es staff, y siempre con seudónimo.
     assert {(i.org, i.classroom) for i in seen} == {("po", "pc")}
+    assert {i.owner for i in seen} == {alias}
+    assert all("preview-alumna" not in i.repo_label for i in seen)
+
+    # Un staff no puede previsualizar alumnado de una clase que no es suya.
+    with pytest.raises(HTTPException) as exc:
+        await my_assignments(_user("tutor"), gh, as_alias=alias, org="other-org", classroom="oc")
+    assert exc.value.status_code == 403
 
     roles.clear_cache()
     with pytest.raises(HTTPException) as exc:
-        await my_assignments(_user("otra-alumna"), _gh([]), as_login="preview-alumna")
+        await my_assignments(
+            _user("otra-alumna"), _gh([]), as_alias=alias, org="po", classroom="pc"
+        )
     assert exc.value.status_code == 403
 
 

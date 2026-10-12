@@ -91,6 +91,24 @@ ejecutar el seed.
 > (`github/results.py: TestResults`). El lector real de las releases de Classroom 50 está
 > **pendiente** de verificar su formato; fuera del modo demo el análisis sigue sin tests.
 
+## Seudónimos en la demo
+
+El alumnado ficticio tiene dos apellidos para que se vea el formato completo. Tras el seed, la
+clase `1-maila` queda así (posición por orden de apellidos; el n.º 2 es el usuario real que
+inició sesión, con su entrega inyectada):
+
+| Código | Quién (solo en «Mostrar identidad») |
+| --- | --- |
+| `1.AGGOE` | Ekain Agirre Goikoetxea |
+| `3.LAITJ` | Jone Larrea Iturbe |
+| `4.MEARN` | Nerea Mendia Arana |
+| `5.ORLAM` | Maialen Ortiz Lasa |
+| `6.URGAA` | Ane Urrutia Garmendia |
+| `7.ZAETU` | Unai Zabala Etxeberria |
+
+En el código de la demo cada fichero lleva `Egilea: <login>`: es justo lo que la limpieza del
+contexto sustituye por el seudónimo antes de llegar al agente.
+
 ## Ver el progreso y la evolución de la clase
 
 Haz varios «Simular push» seguidos a distintos alumnos (p. ej. `jone-larrea` y `ekain-agirre` en

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { api, type Analysis } from '../api'
@@ -24,7 +24,7 @@ export function StudentPage({
   const studentSurface = orgProp !== undefined
   const [tab, setTab] = useState<'progreso' | 'historico'>('progreso')
 
-  const { previewAs, setPreviewAs } = useViewer()
+  const { preview, setPreview } = useViewer()
   const navigate = useNavigate()
   // La lista de repos es de profesorado; el alumno lee su entrega de /me/assignments.
   const repos = useQuery({
@@ -33,8 +33,8 @@ export function StudentPage({
     enabled: org.length > 0 && !studentSurface,
   })
   const mine = useQuery({
-    queryKey: ['myAssignments', previewAs],
-    queryFn: () => api.myAssignments(previewAs),
+    queryKey: ['myAssignments', preview],
+    queryFn: () => api.myAssignments(preview),
     enabled: studentSurface,
   })
   const history = useQuery({
@@ -47,6 +47,12 @@ export function StudentPage({
     queryKey: ['progress', org, classroom, assignment, owner],
     queryFn: () => api.progress(org, classroom, assignment, owner),
     enabled: org.length > 0,
+  })
+
+  // «Mostrar identidad» (solo staff, registrado en el backend). Mutación, no consulta:
+  // así la identidad no queda en la caché y desaparece al salir de la ficha.
+  const reveal = useMutation({
+    mutationFn: () => api.identity(org, classroom, assignment, owner),
   })
 
   const repo =
@@ -88,9 +94,18 @@ export function StudentPage({
             <div className="actions">
               <button
                 type="button"
+                className="ghost"
+                title="Solo profesorado. Cada consulta queda registrada."
+                disabled={reveal.isPending}
+                onClick={() => (reveal.isSuccess ? reveal.reset() : reveal.mutate())}
+              >
+                {reveal.isSuccess ? 'Ocultar identidad' : 'Mostrar identidad'}
+              </button>
+              <button
+                type="button"
                 title="Ver la plataforma tal como la ve este alumno (solo lectura)"
                 onClick={() => {
-                  setPreviewAs(owner)
+                  setPreview({ alias: owner, org, classroom })
                   void navigate({ to: '/mis-clases' })
                 }}
               >
@@ -102,7 +117,7 @@ export function StudentPage({
         <p className="muted">
           {repo ? (
             <>
-              <code>{repo.repo_full_name}</code>
+              <code>{repo.repo_label}</code>
               {repo.head_sha ? <> · {shortSha(repo.head_sha)}</> : null}
               {repo.last_synced_at ? <> · descargado {fmtDateTime(repo.last_synced_at)}</> : null}
             </>
@@ -110,6 +125,17 @@ export function StudentPage({
             <>Sigue el recorrido de feedback de esta entrega.</>
           )}
         </p>
+        {reveal.isSuccess ? (
+          <p className="identity-note" role="status">
+            Identidad (solo profesorado, consulta registrada):{' '}
+            <b>
+              {[reveal.data.first_name, reveal.data.last_name].filter(Boolean).join(' ') ||
+                'sin nombre en el roster'}
+            </b>{' '}
+            · GitHub <code>{reveal.data.login}</code>
+          </p>
+        ) : null}
+        {reveal.isError ? <ErrorNote message={reveal.error.message} /> : null}
         {reviews.length > 0 ? <Pulse reviews={reviews} /> : null}
       </header>
 

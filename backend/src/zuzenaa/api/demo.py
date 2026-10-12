@@ -6,9 +6,15 @@ Ver ``docs/06-datos-de-prueba.md``. Nunca en producción.
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from zuzenaa.api.analyses import AnalyzeOutcomeOut, TestResultsOut, authorize_staff
+from zuzenaa.api.analyses import (
+    AnalyzeOutcomeOut,
+    TestResultsOut,
+    authorize_staff,
+    owner_login,
+)
 from zuzenaa.api.deps import GhCliDep, OptionalUserDep
 from zuzenaa.config import settings
+from zuzenaa.privacy import pseudonyms
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
@@ -50,23 +56,24 @@ async def simulate_push(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El push simulado solo existe en la clase activa de la demo.",
         )
+    login = await owner_login(org, classroom, owner)
     try:
-        outcome = await run_push(assignment=assignment, owner=owner)
+        outcome = await run_push(assignment=assignment, owner=login)
     except PushError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     analysis = outcome.analysis
     return PushOut(
-        owner=outcome.owner,
+        owner=owner,  # seudónimo
         assignment=outcome.assignment,
         commit_sha=outcome.commit_sha,
         message=outcome.message,
         tests=TestResultsOut.model_validate(outcome.tests.to_dict()),
         analysis=AnalyzeOutcomeOut(
-            owner=analysis.owner,
+            owner=owner,
             status=analysis.status,
             commit_sha=analysis.commit_sha,
             analysis_id=analysis.analysis_id,
-            reason=analysis.reason,
+            reason=await pseudonyms.scrub_text(org, classroom, login, analysis.reason),
         ),
     )

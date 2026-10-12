@@ -7,6 +7,21 @@ Empieza por `docs/00`–`docs/05` y `docs/diagramas/`. Se reutiliza: auth, adapt
 lectura), agente/guardarraíles y el stack dockerizado. **No** hay que gestionar clases/roster/
 assignments/tests (eso es Classroom 50) ni publicar el feedback en la PR. **No** hay n8n.
 
+## Privacidad del alumnado (regla dura)
+
+- En la web el alumnado aparece **solo con su seudónimo de clase**: `<posición>.<AP1><AP2><N>`
+  (p. ej. `3.URGAA` = n.º 3, **UR**rutia **GA**rmendia, **A**ne). Posición fijada la primera vez
+  (orden de lista por apellidos; los nuevos al final), así que el código no cambia nunca.
+  Es por clase y el mismo en todos los procesos (tablas, fichas, URLs, análisis, progreso).
+- La API habla en seudónimos: `{owner}` en rutas y `owner` en respuestas son el código; el login
+  solo existe dentro del backend (clonar). Tabla `pseudonyms` (`privacy/pseudonyms.py`; nombre
+  real **cifrado**).
+- **La identidad nunca llega al agente/LLM** (nada puede salir a internet): el contexto lleva el
+  seudónimo y `privacy/scrub.py` sustituye login, nombre y apellidos en código, diff, rutas y
+  feedback previo; si aun así queda alguno, el análisis se **bloquea**.
+- «Mostrar identidad» (`GET .../repos/{owner}/identity`): solo staff de la clase, cada consulta
+  queda en `identity_reveals`. Es el único punto que devuelve la identidad real.
+
 ## Qué es el proyecto
 
 - Classroom 50 sigue siendo la autoridad de **clases, assignments y tests**; ZuzenAA solo **lee**.
@@ -67,7 +82,8 @@ Docker Compose. Comandos abajo.
 
 - `DATA_ROOT` (volumen `data`, montado en `/data`):
   `<org>/<classroom>/<assignment>/{repos/<owner>, snapshots/<owner>/<fecha>-<sha>, analyses.json}`.
-- BD: `users`, `sessions`, `oauth_states`, `repositories`, `analyses`, `sync_runs`.
+- BD: `users`, `sessions`, `oauth_states`, `repositories`, `analyses`, `sync_runs`,
+  `pseudonyms`, `identity_reveals`.
 - El esquema se crea con `create_all` al arrancar (temporal; migrar a Alembic al estabilizar).
 
 ## Comandos

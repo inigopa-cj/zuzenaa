@@ -885,6 +885,14 @@ h3 {
   margin-left: 0.25rem;
 }
 
+/* --- Privacidad --- */
+.identity-note {
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.75rem;
+  border-left: 3px solid var(--alert);
+  font-size: 0.9rem;
+}
+
 /* --- Superficie del alumno --- */
 .preview-banner {
   display: flex;

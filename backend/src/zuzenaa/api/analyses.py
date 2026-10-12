@@ -4,14 +4,16 @@ import json
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from zuzenaa.agent import service as agent_service
 from zuzenaa.api.deps import GhCliDep, GithubTokenDep, OptionalUserDep
 from zuzenaa.config import settings
-from zuzenaa.db.models import Analysis, Repository, User
+from zuzenaa.db.models import Analysis, IdentityReveal, Repository, User
 from zuzenaa.db.session import SessionLocal
 from zuzenaa.github.cli import GhCli, GhError
+from zuzenaa.privacy import pseudonyms
+from zuzenaa.util import now_epoch
 
 router = APIRouter(
     prefix="/orgs/{org}/classrooms/{classroom}/assignments/{assignment}",
@@ -20,12 +22,12 @@ router = APIRouter(
 
 
 class AnalyzeRequest(BaseModel):
-    owner: str | None = None  # None = todos
+    owner: str | None = None  # seudónimo del alumno; None = todos
     force: bool = False  # reanalizar aunque el commit ya esté analizado
 
 
 class AnalyzeOutcomeOut(BaseModel):
-    owner: str
+    owner: str  # seudónimo
     status: str  # analysed | cached | blocked | error
     commit_sha: str | None = None
     analysis_id: int | None = None
@@ -64,7 +66,7 @@ class TestResultsOut(BaseModel):
 
 class AnalysisOut(BaseModel):
     id: int
-    owner: str
+    owner: str  # seudónimo
     commit_sha: str
     commit_committed_at: int | None
     created_at: int
@@ -109,6 +111,14 @@ async def authorize_staff(
     if any(member.username.lower() == user.login.lower() for member in staff):
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=denied)
+
+
+async def owner_login(org: str, classroom: str, alias: str) -> str:
+    """La web y la API hablan en seudónimos: traduce uno a login (o 404)."""
+    login = await pseudonyms.resolve(org, classroom, alias)
+    if login is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="alumno no encontrado")
+    return login
 
 
 async def require_staff(*, org: str, classroom: str, user: User | None, gh: GhCli) -> None:
@@ -178,7 +188,8 @@ async def run_analysis(
 ) -> list[AnalyzeOutcomeOut]:
     """Descarga el último push y lo analiza (un alumno o todos los ya descargados)."""
     await require_staff(org=org, classroom=classroom, user=user, gh=gh)
-    repos = await _repositories(org, classroom, assignment, payload.owner)
+    login = await owner_login(org, classroom, payload.owner) if payload.owner else None
+    repos = await _repositories(org, classroom, assignment, login)
     if not repos:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -193,15 +204,16 @@ async def run_analysis(
         clone_url_template=settings.git_clone_url_template,
         force=payload.force,
     )
+    names = await pseudonyms.aliases_for_logins(org, classroom, [o.owner for o in results])
     outcomes = []
     for outcome in results:
         outcomes.append(
             AnalyzeOutcomeOut(
-                owner=outcome.owner,
+                owner=names[outcome.owner.lower()],
                 status=outcome.status,
                 commit_sha=outcome.commit_sha,
                 analysis_id=outcome.analysis_id,
-                reason=outcome.reason,
+                reason=await pseudonyms.scrub_text(org, classroom, outcome.owner, outcome.reason),
             )
         )
     return outcomes
@@ -216,14 +228,15 @@ async def owner_history(
     user: OptionalUserDep,
     gh: GhCliDep,
 ) -> list[AnalysisOut]:
-    await _authorize_owner(org=org, classroom=classroom, owner=owner, user=user, gh=gh)
+    login = await owner_login(org, classroom, owner)
+    await _authorize_owner(org=org, classroom=classroom, owner=login, user=user, gh=gh)
     async with SessionLocal() as session:
         stmt = (
             select(Repository).where(
                 Repository.org == org,
                 Repository.classroom == classroom,
                 Repository.assignment == assignment,
-                Repository.owner == owner,
+                func.lower(Repository.owner) == login,
             )
         )
         repo = (await session.execute(stmt)).scalar_one_or_none()
@@ -251,3 +264,49 @@ async def owner_history(
         )
         for a in analyses
     ]
+
+
+class IdentityOut(BaseModel):
+    alias: str
+    login: str
+    first_name: str | None
+    last_name: str | None
+
+
+@router.get("/repos/{owner}/identity", response_model=IdentityOut)
+async def reveal_identity(
+    org: str,
+    classroom: str,
+    assignment: str,
+    owner: str,
+    user: OptionalUserDep,
+    gh: GhCliDep,
+) -> IdentityOut:
+    """«Mostrar identidad»: solo staff de la clase, y cada consulta queda registrada.
+
+    Es el único punto de la API que devuelve la identidad real; nunca se usa para el
+    agente ni se guarda en la web.
+    """
+    await authorize_staff(
+        org=org,
+        classroom=classroom,
+        user=user,
+        gh=gh,
+        denied="Solo el profesorado de la clase puede ver la identidad del alumnado.",
+    )
+    login = await owner_login(org, classroom, owner)
+    who = await pseudonyms.identity(org, classroom, login)
+    async with SessionLocal() as session:
+        session.add(
+            IdentityReveal(
+                org=org,
+                classroom=classroom,
+                alias=owner,
+                viewer_login=user.login if user is not None else "(env token)",
+                created_at=now_epoch(),
+            )
+        )
+        await session.commit()
+    return IdentityOut(
+        alias=owner, login=who.login, first_name=who.first_name, last_name=who.last_name
+    )

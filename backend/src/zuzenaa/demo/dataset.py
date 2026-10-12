@@ -137,7 +137,7 @@ STUDENTS: tuple[StudentFixture, ...] = (
     {
         "username": "ane-urrutia",
         "first_name": "Ane",
-        "last_name": "Urrutia",
+        "last_name": "Urrutia Garmendia",
         "email": "ane.urrutia@ikastola-demo.test",
         "section": "A",
         "github_id": 900001,
@@ -145,7 +145,7 @@ STUDENTS: tuple[StudentFixture, ...] = (
     {
         "username": "unai-zabala",
         "first_name": "Unai",
-        "last_name": "Zabala",
+        "last_name": "Zabala Etxeberria",
         "email": "unai.zabala@ikastola-demo.test",
         "section": "A",
         "github_id": 900002,
@@ -153,7 +153,7 @@ STUDENTS: tuple[StudentFixture, ...] = (
     {
         "username": "maialen-ortiz",
         "first_name": "Maialen",
-        "last_name": "Ortiz",
+        "last_name": "Ortiz Lasa",
         "email": "maialen.ortiz@ikastola-demo.test",
         "section": "B",
         "github_id": 900003,
@@ -161,7 +161,7 @@ STUDENTS: tuple[StudentFixture, ...] = (
     {
         "username": "jone-larrea",
         "first_name": "Jone",
-        "last_name": "Larrea",
+        "last_name": "Larrea Iturbe",
         "email": "jone.larrea@ikastola-demo.test",
         "section": "B",
         "github_id": 900004,
@@ -169,7 +169,7 @@ STUDENTS: tuple[StudentFixture, ...] = (
     {
         "username": "ekain-agirre",
         "first_name": "Ekain",
-        "last_name": "Agirre",
+        "last_name": "Agirre Goikoetxea",
         "email": "ekain.agirre@ikastola-demo.test",
         "section": "B",
         "github_id": 900005,
@@ -177,7 +177,7 @@ STUDENTS: tuple[StudentFixture, ...] = (
     {
         "username": "nerea-mendia",
         "first_name": "Nerea",
-        "last_name": "Mendia",
+        "last_name": "Mendia Arana",
         "email": "nerea.mendia@ikastola-demo.test",
         "section": "A",
         "github_id": 900006,

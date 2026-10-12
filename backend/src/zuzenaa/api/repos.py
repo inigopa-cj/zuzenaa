@@ -10,6 +10,7 @@ from zuzenaa.config import settings
 from zuzenaa.db.models import Repository
 from zuzenaa.db.session import SessionLocal
 from zuzenaa.github.cli import GhError
+from zuzenaa.privacy import pseudonyms
 from zuzenaa.repos import service as repo_service
 
 router = APIRouter(
@@ -20,8 +21,8 @@ router = APIRouter(
 
 class RepositoryOut(BaseModel):
     id: int
-    owner: str
-    repo_full_name: str
+    owner: str  # seudónimo (nunca el login)
+    repo_label: str  # <clase>-<assignment>-<seudónimo>
     head_sha: str | None
     head_committed_at: int | None
     last_synced_at: int | None
@@ -53,19 +54,22 @@ async def list_repos(
             .order_by(Repository.owner)
         )
         rows = (await session.execute(stmt)).scalars().all()
-    return [
+    names = await pseudonyms.aliases_for_logins(org, classroom, [row.owner for row in rows])
+    out = [
         RepositoryOut(
             id=row.id,
-            owner=row.owner,
-            repo_full_name=row.repo_full_name,
+            owner=names[row.owner.lower()],
+            repo_label=f"{classroom}-{assignment}-{names[row.owner.lower()]}",
             head_sha=row.head_sha,
             head_committed_at=row.head_committed_at,
             last_synced_at=row.last_synced_at,
             status=row.status,
-            detail=row.detail,
+            detail=await pseudonyms.scrub_text(org, classroom, row.owner, row.detail),
         )
         for row in rows
     ]
+    # Orden de lista de clase (posición del seudónimo), no alfabético por login.
+    return sorted(out, key=lambda r: int(r.owner.split(".", 1)[0]))
 
 
 @router.post("/repos/sync", response_model=SyncOut, status_code=status.HTTP_202_ACCEPTED)
@@ -77,6 +81,8 @@ async def sync_repos(
         students = await gh.roster(org, classroom)
     except GhError as exc:
         raise HTTPException(status_code=502, detail=f"gh teacher falló: {exc}") from exc
+    # Fija los seudónimos con el roster (nombres → iniciales) antes de nada.
+    await pseudonyms.ensure_roster(org, classroom, students)
     owners = [s.username for s in students]
     if not owners:
         raise HTTPException(

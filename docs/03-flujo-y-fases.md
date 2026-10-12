@@ -127,6 +127,13 @@ objetivo.
 - **Evolución más rica**: comparar campos del feedback anterior, no solo un resumen textual.
 - **Filas antiguas** sin `feedback_json` estructurado: caen a markdown en crudo en la ficha.
 
+### Privacidad
+- Hecho: seudónimos por clase, API y web solo con códigos, limpieza del contexto del agente con
+  bloqueo si queda algún dato personal y «Mostrar identidad» registrado.
+- Pendiente: los repos en disco (`repos/<login>`, snapshots) siguen nombrados por login (no salen
+  del servidor); un alumno en varias clases tiene un código distinto en cada una (la posición es de
+  la lista de esa clase); política de retención de `identity_reveals`.
+
 ### R2 — Superficie alumno
 - El descubrimiento es **desde nuestra BD** (solo lo que el profesor ya descargó/analizó); ampliar a
   roster/teams si el CLI se lo permite al alumno.

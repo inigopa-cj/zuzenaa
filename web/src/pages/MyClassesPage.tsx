@@ -7,11 +7,11 @@ import { ErrorNote } from './ClassroomsPage'
 
 /** Superficie del alumno: una tarjeta por entrega con tests, pista actual y avisos. */
 export function MyClassesPage() {
-  const { previewAs, studentLogin } = useViewer()
+  const { preview } = useViewer()
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
   const mine = useQuery({
-    queryKey: ['myAssignments', previewAs],
-    queryFn: () => api.myAssignments(previewAs),
+    queryKey: ['myAssignments', preview],
+    queryFn: () => api.myAssignments(preview),
     retry: false,
     enabled: me.isSuccess,
   })
@@ -36,12 +36,8 @@ export function MyClassesPage() {
       <header className="page-head">
         <h2>Mis entregas</h2>
         <p className="muted">
-          {studentLogin ? (
-            <>
-              <code>{studentLogin}</code> ·{' '}
-            </>
-          ) : null}
-          cómo van tus tests, la pista de tu última revisión y tu progreso.
+          Cómo van tus tests, la pista de tu última revisión y tu progreso. En cada clase
+          apareces con tu <b>código</b>, nunca con tu nombre.
         </p>
       </header>
 
@@ -60,11 +56,14 @@ export function MyClassesPage() {
       {groups.map((group) => (
         <section key={`${group.org}/${group.classroom}`} className="entrega-group">
           <h3>
-            {group.classroom} <span className="dim">· {group.org}</span>
+            {group.classroom} <span className="dim">· {group.org}</span>{' '}
+            <span className="badge" title="Tu código en esta clase">
+              {group.items[0].owner}
+            </span>
           </h3>
           <div className="entregas">
             {group.items.map((item) => (
-              <AssignmentCard key={item.repo_full_name} item={item} />
+              <AssignmentCard key={item.repo_label} item={item} />
             ))}
           </div>
         </section>

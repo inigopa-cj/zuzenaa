@@ -39,6 +39,8 @@ from zuzenaa.db.models import Repository, User
 from zuzenaa.db.session import SessionLocal, init_models
 from zuzenaa.demo import clone_url_template, dataset, origins_root, releases
 from zuzenaa.demo.dataset import CommitFixture, DemoState, SubmissionSpec
+from zuzenaa.github.models import Student
+from zuzenaa.privacy import pseudonyms
 from zuzenaa.repos import paths
 from zuzenaa.repos import service as repo_service
 from zuzenaa.util import now_epoch
@@ -239,6 +241,21 @@ async def seed(*, today: date | None = None) -> SeedSummary:
         releases.clear(state.org, dest.name)
         for index, sha in enumerate(commit_shas(dest)):
             releases.write(state.org, dest.name, dataset.commit_results(assignment, index, sha))
+
+    # 1b. Seudónimos de la clase (posición + iniciales), como al descargar en producción:
+    # el agente y la web solo verán estos códigos.
+    roster = [
+        Student(
+            username=student["username"],
+            first_name=student["first_name"],
+            last_name=student["last_name"],
+        )
+        for student in state.students
+    ]
+    for login in injected:
+        first, _, last = dataset.display_name(login, users.get(login)).partition(" ")
+        roster.append(Student(username=login, first_name=first, last_name=last or None))
+    await pseudonyms.ensure_roster(state.org, dataset.ACTIVE_CLASSROOM, roster)
 
     # 2. Descarga real (clonado) de cada entrega, como en producción.
     owners = [student["username"] for student in state.students] + injected

@@ -97,6 +97,7 @@ function OrgPicker() {
 }
 
 function Session() {
+  const { role } = useViewer()
   const queryClient = useQueryClient()
   const { data: me, isError } = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
   const status = useQuery({ queryKey: ['authStatus'], queryFn: api.authStatus, retry: false })
@@ -113,8 +114,14 @@ function Session() {
   }
   return (
     <span className="session">
-      {me.avatar_url ? <img src={me.avatar_url} alt="" width={22} height={22} /> : null}
-      <strong>{me.login}</strong>
+      {role?.role === 'student' ? (
+        <strong>Sesión de alumno/a</strong>
+      ) : (
+        <>
+          {me.avatar_url ? <img src={me.avatar_url} alt="" width={22} height={22} /> : null}
+          <strong>{me.login}</strong>
+        </>
+      )}
       <button
         type="button"
         onClick={() =>
@@ -143,18 +150,19 @@ function Classroom50Link() {
 }
 
 function PreviewBanner() {
-  const { previewAs, setPreviewAs } = useViewer()
+  const { preview, setPreview } = useViewer()
   const navigate = useNavigate()
-  if (!previewAs) return null
+  if (!preview) return null
   return (
     <div className="preview-banner" role="status">
       <span>
-        Vista previa: así ve la plataforma <code>{previewAs}</code>. Solo lectura.
+        Vista previa: así ve la plataforma <code>{preview.alias}</code> ({preview.classroom}). Solo
+        lectura.
       </span>
       <button
         type="button"
         onClick={() => {
-          setPreviewAs(null)
+          setPreview(null)
           void navigate({ to: '/' })
         }}
       >

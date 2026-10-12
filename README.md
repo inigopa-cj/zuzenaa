@@ -74,6 +74,15 @@ El feedback **vive solo en esta plataforma**; no se publica en GitHub.
   cuestan, pistas comunes y alumnos que necesitan atención.
 - Enlaces directos **«Ver en Classroom 50»** por clase y assignment.
 
+### Privacidad
+
+- El alumnado aparece **siempre con un código de clase** (`3.URGAA`: n.º de lista + iniciales de
+  apellidos y nombre), nunca con su nombre ni su login de GitHub.
+- **Los agentes y LLMs nunca reciben la identidad**: el código se limpia antes de analizarse y,
+  si quedara algún dato personal, el análisis no se envía.
+- El profesorado puede pulsar **«Mostrar identidad»** en una ficha; cada consulta queda
+  registrada.
+
 ### Alumnado
 
 - Entra con GitHub y la web detecta su **rol**: va directo a **Mis entregas**, sin el menú del

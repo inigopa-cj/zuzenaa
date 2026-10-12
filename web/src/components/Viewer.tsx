@@ -4,33 +4,34 @@ import { api, type Role } from '../api'
 
 /**
  * Quién está mirando la web: el rol que detecta el backend (staff/alumno) y, para el
- * profesorado, la **vista previa como alumno**. La vista previa solo cambia lo que se
- * muestra; los permisos los decide siempre el backend.
+ * profesorado, la **vista previa como alumno**. El alumno se identifica siempre por su
+ * seudónimo de clase (p. ej. 3.URGAA), nunca por su login ni su nombre. La vista previa
+ * solo cambia lo que se muestra; los permisos los decide siempre el backend.
  */
-const PREVIEW_KEY = 'zuzenaa.previewAs'
+const PREVIEW_KEY = 'zuzenaa.preview'
+
+export type Preview = { alias: string; org: string; classroom: string }
 
 type ViewerValue = {
   role: Role | null
-  /** Login del alumno que el profesorado está previsualizando (o null). */
-  previewAs: string | null
-  setPreviewAs: (login: string | null) => void
+  /** Alumno que el profesorado está previsualizando (o null). */
+  preview: Preview | null
+  setPreview: (preview: Preview | null) => void
   /** true si hay que mostrar la superficie del alumno. */
   studentView: boolean
-  /** Login cuyas entregas se muestran en la superficie del alumno. */
-  studentLogin: string | null
 }
 
 const ViewerContext = createContext<ViewerValue>({
   role: null,
-  previewAs: null,
-  setPreviewAs: () => undefined,
+  preview: null,
+  setPreview: () => undefined,
   studentView: false,
-  studentLogin: null,
 })
 
-function readPreview(): string | null {
+function readPreview(): Preview | null {
   try {
-    return sessionStorage.getItem(PREVIEW_KEY)
+    const raw = sessionStorage.getItem(PREVIEW_KEY)
+    return raw ? (JSON.parse(raw) as Preview) : null
   } catch {
     return null
   }
@@ -46,29 +47,28 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
     enabled: me.isSuccess,
     staleTime: 5 * 60_000,
   })
-  const [previewAs, setPreviewState] = useState<string | null>(readPreview)
+  const [preview, setPreviewState] = useState<Preview | null>(readPreview)
 
-  const setPreviewAs = (login: string | null) => {
+  const setPreview = (value: Preview | null) => {
     try {
-      if (login) sessionStorage.setItem(PREVIEW_KEY, login)
+      if (value) sessionStorage.setItem(PREVIEW_KEY, JSON.stringify(value))
       else sessionStorage.removeItem(PREVIEW_KEY)
     } catch {
       /* almacenamiento no disponible: la vista previa dura lo que la pestaña */
     }
-    setPreviewState(login)
+    setPreviewState(value)
     void queryClient.invalidateQueries({ queryKey: ['myAssignments'] })
   }
 
   const info = role.data ?? null
   const isStudent = info?.role === 'student'
   // Solo el profesorado puede previsualizar; un alumno siempre se ve a sí mismo.
-  const activePreview = !isStudent && previewAs ? previewAs : null
+  const activePreview = !isStudent ? preview : null
   const value: ViewerValue = {
     role: info,
-    previewAs: activePreview,
-    setPreviewAs,
+    preview: activePreview,
+    setPreview,
     studentView: isStudent || activePreview !== null,
-    studentLogin: activePreview ?? (me.data?.login ?? null),
   }
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>
 }

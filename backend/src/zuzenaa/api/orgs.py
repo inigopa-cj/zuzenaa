@@ -11,6 +11,7 @@ from zuzenaa.github.models import (
     Student,
     TemplateRepo,
 )
+from zuzenaa.privacy import pseudonyms
 
 router = APIRouter(prefix="/orgs", tags=["classroom50"])
 
@@ -53,10 +54,16 @@ async def list_assignments(org: str, classroom: str, gh: GhCliDep) -> list[Assig
 
 @router.get("/{org}/classrooms/{classroom}/roster", response_model=list[Student])
 async def list_roster(org: str, classroom: str, gh: GhCliDep) -> list[Student]:
+    """Roster **seudonimizado**: solo el código de cada alumno, sin login ni nombre."""
     try:
-        return await gh.roster(org, classroom)
+        students = await gh.roster(org, classroom)
     except GhError as exc:
         raise _bad_gateway(exc) from exc
+    names = await pseudonyms.ensure_roster(org, classroom, students)
+    codes = sorted(
+        (names[s.username.lower()] for s in students), key=lambda a: int(a.split(".", 1)[0])
+    )
+    return [Student(username=code) for code in codes]
 
 
 @router.get("/{org}/classrooms/{classroom}/staff", response_model=list[Student])

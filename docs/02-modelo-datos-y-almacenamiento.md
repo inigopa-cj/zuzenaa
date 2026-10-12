@@ -63,7 +63,7 @@ Un análisis (feedback) sobre un commit.
 | `commit_sha`, `commit_committed_at` | commit analizado |
 | `snapshot_path` | carpeta del snapshot |
 | `provider` | mock/openai/… |
-| `feedback_json` | feedback estructurado (schema del agente) |
+| `feedback_json` | feedback estructurado (schema del agente) + `tests` (resultado de los tests del commit, si lo hay) |
 | `feedback_md` | render |
 | `evolution` | evolución vs. análisis anterior (nullable) |
 | `tokens_used` | coste |
@@ -72,6 +72,11 @@ Un análisis (feedback) sobre un commit.
 
 ### `sync_runs` / `analysis_runs` (opcional)
 Estado y progreso de las descargas y de los análisis masivos.
+
+### Progreso y evolución de la clase (sin tabla propia)
+Se **calculan al leer** a partir de `analyses` (feedback + `tests`) y del `git log` del clon
+(`progress/`). No se persisten: siempre están al día y no duplican el histórico. Cuando un LLM real
+redacte los resúmenes, se cachearán por `(repository_id, último análisis incluido)`.
 
 ## 3. Reglas
 

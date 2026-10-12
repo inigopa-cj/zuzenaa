@@ -766,6 +766,125 @@ h3 {
   padding: 0.05rem 0.5rem;
 }
 
+.badge-alert {
+  color: var(--alert);
+  border-color: color-mix(in srgb, var(--alert) 45%, transparent);
+}
+
+.test-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+/* --- Progreso del alumno y evolución de la clase --- */
+.progress-panel {
+  margin: 1rem 0 1.5rem;
+}
+.progress-summary {
+  margin: 0 0 0.75rem;
+  max-width: 70ch;
+}
+.progress-title {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 1rem 0 0.5rem;
+}
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.5rem 2rem;
+}
+.alert-list,
+.rate-list,
+.hint-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  font-size: 0.9rem;
+}
+.alert-list li,
+.hint-list li {
+  margin: 0.25rem 0;
+}
+.strip {
+  margin: 0;
+}
+.strip-plot {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 5rem;
+  border-bottom: 1px solid var(--line-strong);
+}
+.strip-col {
+  flex: 1 1 0;
+  max-width: 3.25rem;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  cursor: default;
+}
+.strip-col:hover .strip-bar {
+  opacity: 0.75;
+}
+.strip-bar {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+}
+.strip-axis {
+  display: flex;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.strip-axis span {
+  flex: 1 1 0;
+  max-width: 3.25rem;
+  overflow: visible;
+  text-align: left;
+  white-space: nowrap;
+}
+.rate-list li {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr auto;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0.3rem 0;
+}
+.rate-track {
+  height: 6px;
+  background: var(--line);
+  border-radius: 4px;
+}
+.rate-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.8rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+.facts dt {
+  color: var(--muted);
+}
+.facts dd {
+  margin: 0;
+}
+.badge + .badge {
+  margin-left: 0.25rem;
+}
+
 .feedback-sections {
   display: flex;
   flex-direction: column;

@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     data_root: str = "/data"
     git_clone_depth: int = 0  # 0 = historia completa; >0 = clon superficial
     git_timeout: float = 300.0
+    # Plantilla de la URL de clonado ({org} y {repo}). El modo demo la apunta a
+    # orígenes git locales (file://). Ver docs/06-datos-de-prueba.md.
+    git_clone_url_template: str = "https://github.com/{org}/{repo}.git"
 
     # Agente de feedback (análisis local)
     llm_provider: str = "mock"  # mock | openai | anthropic | local
@@ -57,6 +60,11 @@ class Settings(BaseSettings):
     # Atajo de desarrollo: aceptar ZUZENAA_GITHUB_TOKEN si no hay sesión.
     allow_env_token: bool = False
     github_token: SecretStr | None = None
+
+    # --- Datos de prueba (modo demo) ---
+    # Emula Classroom 50 con un dataset ficticio (org ikastola-demo). NUNCA en
+    # producción: ver docs/06-datos-de-prueba.md.
+    demo_mode: bool = False
 
     @property
     def oauth_redirect_uri(self) -> str:

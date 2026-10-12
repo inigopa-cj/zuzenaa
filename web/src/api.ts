@@ -69,6 +69,24 @@ export type Feedback = {
   teoria: string | null
 }
 
+/** Resultado de los tests de Classroom 50 del commit (leído de la release, no ejecutado). */
+export type TestResults = {
+  passed: number
+  total: number
+  score: number
+  max_score: number
+  tests: { name: string; passed: boolean; points: number; max_points: number }[]
+}
+
+export type PushOut = {
+  owner: string
+  assignment: string
+  commit_sha: string
+  message: string
+  tests: TestResults
+  analysis: AnalyzeOutcome
+}
+
 export type Analysis = {
   id: number
   owner: string
@@ -78,7 +96,77 @@ export type Analysis = {
   provider: string
   feedback_md: string
   feedback: Feedback | null
+  tests: TestResults | null
   evolution: string | null
+}
+
+/** Progreso del alumno: calculado sobre su histórico de análisis + historia git. */
+export type TestPoint = {
+  commit: string
+  at: number
+  passed: number
+  total: number
+  score: number
+  max_score: number
+}
+
+export type ProgressAlert = { kind: string; text: string }
+
+export type StudentProgress = {
+  owner: string
+  analyses: number
+  current: TestPoint | null
+  timeline: TestPoint[]
+  tests: {
+    name: string
+    passing: boolean
+    first_passed_commit: string | null
+    first_passed_at: number | null
+    regressions: number
+  }[]
+  regressions: { test: string; commit: string; at: number }[]
+  hint_streak: number
+  repeated_hint: string | null
+  rhythm: {
+    commits: number
+    analysed_commits: number
+    first_at: number
+    last_at: number
+    active_days: number
+    days_since_last: number
+    avg_lines: number
+    largest_lines: number
+    largest_commit: string
+  } | null
+  alerts: ProgressAlert[]
+  summary: string
+  latest_hint: string | null
+}
+
+/** Evolución de la clase: agrega el progreso de cada alumno (solo profesorado). */
+export type ClassEvolution = {
+  students: number
+  analysed: number
+  with_tests: number
+  all_passing: number
+  avg_ratio: number | null
+  tests: { name: string; passing: number; students: number }[]
+  timeline: { day: string; avg_ratio: number; students: number }[]
+  attention: ClassStudentRow[]
+  rows: ClassStudentRow[]
+  common_hints: { text: string; students: number }[]
+  summary: string
+}
+
+export type ClassStudentRow = {
+  owner: string
+  analyses: number
+  passed: number | null
+  total: number | null
+  score: number | null
+  max_score: number | null
+  last_commit_at: number | null
+  alerts: string[]
 }
 
 export type Me = { login: string; name: string | null; avatar_url: string | null }
@@ -134,6 +222,7 @@ export const api = {
       scopes: string
       callback_url: string
       classroom50_url: string
+      demo_mode: boolean
     }>('/api/auth/status'),
   orgs: () => getJson<{ login: string }[]>('/api/orgs'),
   classrooms: (org: string) => getJson<Classroom[]>(`/api/orgs/${org}/classrooms`),
@@ -152,5 +241,12 @@ export const api = {
     }),
   history: (org: string, classroom: string, assignment: string, owner: string) =>
     getJson<Analysis[]>(`${assignmentBase(org, classroom, assignment)}/repos/${owner}/analyses`),
+  progress: (org: string, classroom: string, assignment: string, owner: string) =>
+    getJson<StudentProgress>(`${assignmentBase(org, classroom, assignment)}/repos/${owner}/progress`),
+  classProgress: (org: string, classroom: string, assignment: string) =>
+    getJson<ClassEvolution>(`${assignmentBase(org, classroom, assignment)}/progress`),
   myAssignments: () => getJson<MyAssignment[]>('/api/me/assignments'),
+  /** Solo modo demo: el alumno sube su siguiente revisión (tests + descarga + análisis). */
+  demoPush: (org: string, classroom: string, assignment: string, owner: string) =>
+    post<PushOut>(`/api/demo/orgs/${org}/classrooms/${classroom}/assignments/${assignment}/repos/${owner}/push`),
 }

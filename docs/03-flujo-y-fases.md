@@ -8,8 +8,8 @@
 | 2 | Elegir organización → clase | **Web** (lee de Classroom 50) |
 | 3 | Elegir un assignment | **Web** |
 | 4 | **Descargar repos** del assignment | **Web** → backend (`git clone`, disco) |
-| 5 | **Analizar** (un alumno o todos) | **Web** → backend worker (LLM) |
-| 6 | Ver **histórico** por alumno y **progreso** | **Web** (BD + disco) |
+| 5 | **Analizar** (un alumno o todos): descarga el último push y lo analiza | **Web** → backend worker (LLM) |
+| 6 | Ver **histórico** y **progreso** por alumno, y la **evolución de la clase** | **Web** (BD + disco) |
 | 7 | (Opcional) Forzar reanálisis de un commit | **Web** |
 
 ## 2. Flujo completo (alumno)
@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | 1 | Login con GitHub | **Web** (OAuth) |
 | 2 | Ver sus clases/assignments | **Web** (BD: lo que el profesor ya descargó/analizó) |
-| 3 | Por repo: ver **todo el histórico** de feedback (fecha + commit) y progreso | **Web** |
+| 3 | Por repo: ver **todo el histórico** de feedback (fecha + commit) y el resumen de su progreso | **Web** |
 
 ## 3. Qué sigue ocurriendo en Classroom 50 / GitHub
 
@@ -40,7 +40,10 @@ ZuzenAA solo **lee** ese estado para saber qué assignments y alumnos hay.
   - **Repos**: estado por alumno (descargado / sin cambios / error, último commit).
   - **Análisis**: lanzar individual/masivo, ver progreso.
   - **Histórico**: por alumno, lista de feedbacks (fecha, commit, resumen).
-  - **Progreso**: evolución a lo largo del tiempo.
+  - **Evolución de la clase** (solo profesorado): media de puntos por día, tests que más cuestan,
+    pistas comunes y alumnos que necesitan atención.
+- **Ficha del alumno**: **Progreso** (resumen de evolución: curva de tests, regresiones, pistas
+  repetidas, ritmo de commits + cronología) e **Histórico** (feedback completo por commit).
 - **Ajustes**: sesión/OAuth/almacenamiento.
 - Superficie alumno: mismas entidades filtradas a sí mismo, en **solo lectura**.
 
@@ -56,7 +59,7 @@ ZuzenAA solo **lee** ese estado para saber qué assignments y alumnos hay.
 ### Fase R1 — Agente local + histórico
 - Analizar el código local (mock → real), cache por commit, forzar reanálisis.
 - Snapshot por análisis + `feedback.md` + `analyses.json`.
-- Histórico por alumno y **vista de progreso**.
+- Histórico por alumno y **vista de progreso** con métricas reales (tests, regresiones, ritmo).
 
 **Criterio:** analizar un assignment y ver el histórico con fecha y commit.
 
@@ -72,7 +75,8 @@ ZuzenAA solo **lee** ese estado para saber qué assignments y alumnos hay.
 
 ### Fase R4 — Mejoras
 - Notificaciones (email/Slack) si se decide.
-- Analítica por concepto y comparativas entre entregas.
+- **Evolución de la clase** por assignment (hecho: agrega el progreso de cada alumno).
+- Analítica por concepto y comparativas **entre** assignments/entregas.
 
 ### Fase R5 — Tutor RAG (chatbot)
 - **Chatbot de apoyo** en la web que responde dudas sobre ejercicios, teoría y tests, con
@@ -113,7 +117,10 @@ objetivo.
 
 ### R1 — Agente local + histórico
 - **Análisis masivo como job** con progreso y reanudación (hoy es una petición síncrona).
-- **Progreso con métricas reales** (tests/notas) cuando haya proveedor; hoy es una traza descriptiva.
+- ~~Progreso con métricas reales~~: hecho sobre tests, regresiones y ritmo de commits
+  (`progress/`). Pendiente: resúmenes redactados por un LLM real (hoy plantillas) y su caché.
+- **Histórico sin tests en datos antiguos**: los análisis anteriores al resultado de tests no
+  aportan puntos a la curva; solo cuentan para el ritmo y las pistas.
 - **Evolución más rica**: comparar campos del feedback anterior, no solo un resumen textual.
 - **Filas antiguas** sin `feedback_json` estructurado: caen a markdown en crudo en la ficha.
 

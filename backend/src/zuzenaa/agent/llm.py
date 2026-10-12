@@ -41,8 +41,9 @@ class MockProvider:
     """Deterministic provider for local/dev and tests.
 
     It reads the *real* repository context built by ``agent.context`` (file tree,
-    language mix, size signals, diff) and returns a short, solution-free
-    summary, so the end-to-end flow is observable and code-aware without a model.
+    language mix, size signals, diff) and, when available, the Classroom 50 test
+    results of the commit, and returns a short, solution-free summary, so the
+    end-to-end flow is observable and code-aware without a model.
     """
 
     name = "mock"
@@ -120,16 +121,68 @@ class MockProvider:
                 "valora si concentra demasiadas responsabilidades."
             )
 
+        # La pista apunta a lo más importante que falta: si se repite entre
+        # revisiones, es que eso sigue sin resolverse (lo usa el progreso).
+        if todo_count:
+            pista_text = (
+                "Repasa las marcas TODO/FIXME: elige la que más limita tu programa y resuélvela."
+            )
+        elif not has_tests:
+            pista_text = (
+                "Escribe un caso de prueba pequeño para tu función principal antes de ampliarla."
+            )
+        elif not has_readme:
+            pista_text = "Explica en un README cómo se ejecuta: te obliga a revisar la entrada."
+        else:
+            pista_text = (
+                "Prueba el caso límite de una entrada vacía antes de recorrer la colección."
+            )
+        tests = context.get("tests")
+        if isinstance(tests, dict):
+            summary, failing = MockProvider._tests_summary(tests, context.get("previous_tests"))
+            funcionalidad = f"{summary} {funcionalidad}"
+            if failing:
+                pista_text = (
+                    f"Lee con calma qué comprueba «{failing[0]}»: su nombre dice qué caso espera. "
+                    "Reprodúcelo tú en local antes de volver a subir."
+                )
+            else:
+                pista_text = (
+                    "Los tests de Classroom 50 pasan: piensa en un caso que no comprueben "
+                    "y verifica que tu código también lo resuelve."
+                )
+
         return AgentFeedback(
             funcionalidad=funcionalidad,
             calidad=calidad,
             diseno=diseno,
-            pista=Hint(
-                level=2,
-                text="Prueba el caso límite de una entrada vacía antes de recorrer la colección.",
-            ),
+            pista=Hint(level=2, text=pista_text),
             teoria=None,
         )
+
+    @staticmethod
+    def _tests_summary(tests: dict[str, object], previous: object) -> tuple[str, list[str]]:
+        """Frase sobre los tests del commit (y su evolución) + nombres que fallan."""
+        passed = _as_int(tests.get("passed"))
+        total = _as_int(tests.get("total"))
+        score = _as_int(tests.get("score"))
+        max_score = _as_int(tests.get("max_score"))
+        cases = tests.get("tests")
+        failing = [
+            str(item.get("name"))
+            for item in (cases if isinstance(cases, list) else [])
+            if isinstance(item, dict) and not item.get("passed")
+        ]
+        text = f"Tests de Classroom 50: pasan {passed} de {total} ({score}/{max_score} puntos)."
+        if isinstance(previous, dict):
+            before = _as_int(previous.get("passed"))
+            if passed > before:
+                text += f" Mejora respecto a la revisión anterior ({before} de {total})."
+            elif passed < before:
+                text += f" Ojo: en la revisión anterior pasaban {before}; algo se ha roto."
+        if failing:
+            text += f" Falla: {', '.join(failing)}."
+        return text, failing
 
     @staticmethod
     def _largest(repo: dict[str, object]) -> tuple[str, int] | None:

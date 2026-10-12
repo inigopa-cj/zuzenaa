@@ -3,7 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { api, type Analysis } from '../api'
 import { useOrg } from '../components/AppLayout'
-import { FeedbackBody, fmtDateTime, shortSha } from '../components/Feedback'
+import { FeedbackBody, TestsBadge, fmtDateTime, shortSha } from '../components/Feedback'
+import { StudentProgressPanel } from '../components/Progress'
 import { ErrorNote } from './ClassroomsPage'
 
 export function StudentPage({
@@ -30,6 +31,12 @@ export function StudentPage({
   const history = useQuery({
     queryKey: ['history', org, classroom, assignment, owner],
     queryFn: () => api.history(org, classroom, assignment, owner),
+    enabled: org.length > 0,
+  })
+
+  const progress = useQuery({
+    queryKey: ['progress', org, classroom, assignment, owner],
+    queryFn: () => api.progress(org, classroom, assignment, owner),
     enabled: org.length > 0,
   })
 
@@ -110,6 +117,10 @@ export function StudentPage({
             </button>
           </div>
 
+          {tab === 'progreso' && progress.isSuccess ? (
+            <StudentProgressPanel progress={progress.data} />
+          ) : null}
+          {tab === 'progreso' && progress.isError ? <ErrorNote message={progress.error.message} /> : null}
           {tab === 'progreso' ? (
             <ol className="timeline">
               {ascending.map((item, index) => {
@@ -123,6 +134,7 @@ export function StudentPage({
                         <time dateTime={new Date(item.created_at * 1000).toISOString()}>
                           {fmtDateTime(item.created_at)}
                         </time>
+                        {item.tests ? <TestsBadge tests={item.tests} /> : null}
                         {latest ? <span className="badge">última</span> : null}
                       </div>
                       <p className="timeline-summary">
@@ -146,6 +158,7 @@ export function StudentPage({
                     <code>{shortSha(item.commit_sha)}</code>
                     <span className="dim"> · {fmtDateTime(item.created_at)}</span>
                     <span className="dim"> · {item.provider}</span>
+                    {item.tests ? <> <TestsBadge tests={item.tests} /></> : null}
                   </header>
                   {item.evolution ? <p className="muted">{item.evolution}</p> : null}
                   <FeedbackBody analysis={item} />

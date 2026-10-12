@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from zuzenaa.api.deps import GhCliDep
+from zuzenaa.config import settings
 from zuzenaa.db.models import Repository
 from zuzenaa.db.session import SessionLocal
 from zuzenaa.github.cli import GhError
@@ -80,7 +81,12 @@ async def sync_repos(
             detail="El roster está vacío: no hay repos que descargar.",
         )
     summary = await repo_service.sync_assignment(
-        org=org, classroom=classroom, assignment=assignment, owners=owners, token=gh.token
+        org=org,
+        classroom=classroom,
+        assignment=assignment,
+        owners=owners,
+        token=gh.token,
+        clone_url_template=settings.git_clone_url_template,
     )
     return SyncOut(
         total=summary.total,

@@ -21,6 +21,15 @@ class GitResult:
 
 
 @dataclass
+class CommitInfo:
+    sha: str
+    committed_at: int
+    files_changed: int
+    insertions: int
+    deletions: int
+
+
+@dataclass
 class GitDiff:
     files_changed: int
     insertions: int
@@ -79,8 +88,22 @@ async def sync_repo(
     code, _, err = await _run_git(["fetch", "--all", "--prune"], cwd=path, timeout=timeout)
     if code != 0:
         raise GitError(f"git fetch falló: {err.strip()}", stderr=err)
+    # El fetch solo trae los commits: hay que mover el árbol de trabajo a la rama
+    # remota para que el análisis vea el último push (también tras un force-push).
+    await _reset_to_remote(path, timeout=timeout)
     sha, committed_at = await _head_info(path)
     return GitResult(cloned=False, head_sha=sha, committed_at=committed_at)
+
+
+async def _reset_to_remote(repo: Path, *, timeout: float) -> None:
+    """Deja el clon local igual que la rama por defecto del remoto."""
+    err = ""
+    for target in ("origin/HEAD", "@{upstream}"):
+        args = ["reset", "--hard", "--quiet", target]
+        code, _, err = await _run_git(args, cwd=repo, timeout=timeout)
+        if code == 0:
+            return
+    raise GitError(f"git reset falló: {err.strip()}", stderr=err)
 
 
 async def diff(
@@ -125,6 +148,39 @@ async def diff(
         patch=out[:max_chars],
         truncated=truncated,
     )
+
+
+_LOG_MARK = "@@zuzenaa@@"
+
+
+async def log(repo: Path, *, max_commits: int = 500, timeout: float = 60.0) -> list[CommitInfo]:
+    """Historia de HEAD (del más antiguo al más reciente) con el tamaño de cada commit.
+
+    Incluye también los commits que nunca se analizaron: es la base del ritmo de
+    trabajo en el progreso del alumno.
+    """
+    args = [
+        "log", "--no-color", f"--max-count={max_commits}", "--reverse",
+        f"--format={_LOG_MARK}%H %ct", "--numstat",
+    ]
+    code, out, err = await _run_git(args, cwd=repo, timeout=timeout)
+    if code != 0:
+        raise GitError(f"git log falló: {err.strip()}", stderr=err)
+
+    commits: list[CommitInfo] = []
+    for line in out.splitlines():
+        if line.startswith(_LOG_MARK):
+            sha, _, stamp = line[len(_LOG_MARK):].partition(" ")
+            commits.append(CommitInfo(sha, int(stamp) if stamp.isdigit() else 0, 0, 0, 0))
+            continue
+        parts = line.split("\t")
+        if len(parts) != 3 or not commits:
+            continue
+        current = commits[-1]
+        current.files_changed += 1
+        current.insertions += int(parts[0]) if parts[0].isdigit() else 0
+        current.deletions += int(parts[1]) if parts[1].isdigit() else 0
+    return commits
 
 
 def _with_token(clone_url: str, token: str) -> str:

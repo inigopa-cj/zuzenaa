@@ -82,3 +82,61 @@ def test_guardrails_block_code_line() -> None:
 def test_unknown_provider_is_rejected() -> None:
     with pytest.raises(ValueError, match="no soportado"):
         build_provider("gpt-9000")
+
+
+def _tests_payload(passing: dict[str, bool]) -> dict[str, object]:
+    cases: list[dict[str, object]] = [
+        {"name": name, "passed": ok, "points": 5 if ok else 0, "max_points": 5}
+        for name, ok in passing.items()
+    ]
+    return {
+        "commit": "b" * 40,
+        "score": 5 * sum(passing.values()),
+        "max_score": 5 * len(cases),
+        "tests": cases,
+        "passed": sum(1 for ok in passing.values() if ok),
+        "total": len(cases),
+    }
+
+
+async def test_mock_provider_comments_failing_tests() -> None:
+    worker = AgentWorker(MockProvider())
+    context: dict[str, object] = {
+        "repo": {"file_count": 1, "line_count": 10, "languages": ["Python"]},
+        "tests": _tests_payload({"test_batu": True, "test_sarrera_okerra": False}),
+        "previous_tests": _tests_payload({"test_batu": False, "test_sarrera_okerra": False}),
+    }
+    result = await worker.run(context)
+    assert result.posted is True
+    assert result.feedback is not None
+    assert "pasan 1 de 2 (5/10 puntos)" in result.feedback.funcionalidad
+    assert "Mejora" in result.feedback.funcionalidad
+    assert "test_sarrera_okerra" in result.feedback.pista.text
+
+
+async def test_mock_provider_warns_on_regression_and_all_green() -> None:
+    worker = AgentWorker(MockProvider())
+    regression = await worker.run(
+        {
+            "repo": {"file_count": 1},
+            "tests": _tests_payload({"a": False}),
+            "previous_tests": _tests_payload({"a": True}),
+        }
+    )
+    assert regression.feedback is not None
+    assert "algo se ha roto" in regression.feedback.funcionalidad
+
+    green = await worker.run({"repo": {"file_count": 1}, "tests": _tests_payload({"a": True})})
+    assert green.feedback is not None
+    assert "Falla" not in green.feedback.funcionalidad
+    assert "pasan" in green.feedback.pista.text
+
+
+async def test_mock_hint_points_at_what_is_missing() -> None:
+    worker = AgentWorker(MockProvider())
+    todo = await worker.run({"repo": {"todo_count": 2, "has_tests": True, "has_readme": True}})
+    no_tests = await worker.run({"repo": {"has_tests": False, "has_readme": True}})
+    done = await worker.run({"repo": {"has_tests": True, "has_readme": True}})
+    assert todo.feedback is not None and "TODO" in todo.feedback.pista.text
+    assert no_tests.feedback is not None and "caso de prueba" in no_tests.feedback.pista.text
+    assert done.feedback is not None and "entrada vacía" in done.feedback.pista.text

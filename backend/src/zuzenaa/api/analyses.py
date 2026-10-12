@@ -7,7 +7,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import select
 
 from zuzenaa.agent import service as agent_service
-from zuzenaa.api.deps import GhCliDep, OptionalUserDep
+from zuzenaa.api.deps import GhCliDep, GithubTokenDep, OptionalUserDep
 from zuzenaa.config import settings
 from zuzenaa.db.models import Analysis, Repository, User
 from zuzenaa.db.session import SessionLocal
@@ -45,6 +45,23 @@ class FeedbackOut(BaseModel):
     teoria: str | None = None
 
 
+class TestCaseOut(BaseModel):
+    name: str
+    passed: bool
+    points: int
+    max_points: int
+
+
+class TestResultsOut(BaseModel):
+    """Resultado de los tests de Classroom 50 del commit analizado (leído, no ejecutado)."""
+
+    passed: int
+    total: int
+    score: int
+    max_score: int
+    tests: list[TestCaseOut]
+
+
 class AnalysisOut(BaseModel):
     id: int
     owner: str
@@ -54,6 +71,7 @@ class AnalysisOut(BaseModel):
     provider: str
     feedback_md: str
     feedback: FeedbackOut | None = None
+    tests: TestResultsOut | None = None
     evolution: str | None
 
 
@@ -67,6 +85,19 @@ async def _authorize_owner(
     """
     if user is not None and user.login.lower() == owner.lower():
         return
+    await authorize_staff(
+        org=org,
+        classroom=classroom,
+        user=user,
+        gh=gh,
+        denied="No tienes acceso al feedback de otro alumno.",
+    )
+
+
+async def authorize_staff(
+    *, org: str, classroom: str, user: User | None, gh: GhCli, denied: str
+) -> None:
+    """Allow only classroom staff (or the local ``allow_env_token`` shortcut)."""
     if user is None:
         if settings.allow_env_token:
             return
@@ -77,22 +108,35 @@ async def _authorize_owner(
         staff = []
     if any(member.username.lower() == user.login.lower() for member in staff):
         return
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="No tienes acceso al feedback de otro alumno.",
-    )
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=denied)
 
 
-def _feedback(analysis: Analysis) -> FeedbackOut | None:
-    """Parse the structured feedback stored alongside the render (if any)."""
+def _payload(analysis: Analysis) -> dict[str, object] | None:
     try:
         payload = json.loads(analysis.feedback_json)
     except json.JSONDecodeError:
         return None
-    if not isinstance(payload, dict):
+    return payload if isinstance(payload, dict) else None
+
+
+def _feedback(analysis: Analysis) -> FeedbackOut | None:
+    """Parse the structured feedback stored alongside the render (if any)."""
+    payload = _payload(analysis)
+    if payload is None:
         return None
     try:
         return FeedbackOut.model_validate(payload)
+    except ValidationError:
+        return None
+
+
+def _tests(analysis: Analysis) -> TestResultsOut | None:
+    """Test results stored with the analysis (absent in older rows)."""
+    payload = _payload(analysis)
+    if payload is None or not isinstance(payload.get("tests"), dict):
+        return None
+    try:
+        return TestResultsOut.model_validate(payload["tests"])
     except ValidationError:
         return None
 
@@ -113,17 +157,26 @@ async def _repositories(
 
 @router.post("/analysis", response_model=list[AnalyzeOutcomeOut])
 async def run_analysis(
-    org: str, classroom: str, assignment: str, payload: AnalyzeRequest
+    org: str, classroom: str, assignment: str, payload: AnalyzeRequest, token: GithubTokenDep
 ) -> list[AnalyzeOutcomeOut]:
+    """Descarga el último push y lo analiza (un alumno o todos los ya descargados)."""
     repos = await _repositories(org, classroom, assignment, payload.owner)
     if not repos:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No hay repos descargados para ese assignment (descárgalos primero).",
         )
+    results = await agent_service.sync_and_analyze(
+        org=org,
+        classroom=classroom,
+        assignment=assignment,
+        owners=sorted(repo.owner for repo in repos),
+        token=token,
+        clone_url_template=settings.git_clone_url_template,
+        force=payload.force,
+    )
     outcomes = []
-    for repo in repos:
-        outcome = await agent_service.analyze_repository(repo, force=payload.force)
+    for outcome in results:
         outcomes.append(
             AnalyzeOutcomeOut(
                 owner=outcome.owner,
@@ -175,6 +228,7 @@ async def owner_history(
             provider=a.provider,
             feedback_md=a.feedback_md,
             feedback=_feedback(a),
+            tests=_tests(a),
             evolution=a.evolution,
         )
         for a in analyses

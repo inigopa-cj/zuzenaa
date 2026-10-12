@@ -78,3 +78,54 @@ async def test_force_reanalyzes() -> None:
     await agent_service.analyze_repository(repo)
     forced = await agent_service.analyze_repository(repo, force=True)
     assert forced.status == "analysed"
+
+
+def _git(cwd: Path, *args: str) -> str:
+    import subprocess
+
+    result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+
+
+def _commit(origin: Path, name: str, content: str, message: str) -> str:
+    (origin / name).write_text(content)
+    _git(origin, "add", "-A")
+    _git(origin, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", message)
+    return _git(origin, "rev-parse", "HEAD")
+
+
+async def test_sync_and_analyze_picks_up_latest_push(tmp_path: Path) -> None:
+    await init_models()
+    org, classroom, assignment = "org", "c2", "a2"
+    template = tmp_path.as_uri() + "/{org}/{repo}"
+    origin = tmp_path / org / f"{classroom}-{assignment}-luis"
+    origin.mkdir(parents=True)
+    _git(origin, "init", "-q", "-b", "main")
+    first = _commit(origin, "main.py", "print('v1')\n", "v1")
+
+    async def analyze(owners: list[str]) -> list[agent_service.AnalyzeOutcome]:
+        return await agent_service.sync_and_analyze(
+            org=org,
+            classroom=classroom,
+            assignment=assignment,
+            owners=owners,
+            token="",
+            clone_url_template=template,
+        )
+
+    [outcome] = await analyze(["luis"])
+    assert (outcome.status, outcome.commit_sha) == ("analysed", first)
+
+    # El alumno hace push: «Analizar» descarga ese commit antes de analizar.
+    second = _commit(origin, "main.py", "print('v2')\n", "v2")
+    [outcome] = await analyze(["luis"])
+    assert (outcome.status, outcome.commit_sha) == ("analysed", second)
+
+    # Sin push nuevo, el mismo commit no se vuelve a analizar.
+    [outcome] = await analyze(["luis"])
+    assert (outcome.status, outcome.commit_sha) == ("cached", second)
+
+    # Si la descarga falla, no se analiza código viejo.
+    [missing] = await analyze(["sin-repo"])
+    assert missing.status == "error"
+    assert missing.reason is not None and "descargar" in missing.reason

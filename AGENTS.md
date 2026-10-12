@@ -36,17 +36,27 @@ Docker Compose. Comandos abajo.
   `.../{c}/assignments`, `.../{c}/roster`, `.../{c}/staff`, `GET /orgs/{org}/templates`.
 - **Repos** (`api/repos.py`): `GET .../assignments/{a}/repos` (estado por alumno),
   `POST .../assignments/{a}/repos/sync` (descarga/actualiza clones a disco).
-- **Análisis** (`api/analyses.py`): `POST .../assignments/{a}/analysis` (`{owner?, force?}`),
+- **Análisis** (`api/analyses.py`): `POST .../assignments/{a}/analysis` (`{owner?, force?}`)
+  **descarga el último push y lo analiza** (`agent/service.py: sync_and_analyze`; mismo camino que
+  el push simulado de la demo),
   `GET .../assignments/{a}/repos/{owner}/analyses` (histórico, con `feedback` estructurado).
   La lectura del histórico está **autorizada**: el alumno (sesión) solo ve lo suyo; el **staff**
   de la clase (`gh teacher staff`) ve a cualquiera; sin sesión solo pasa el atajo `allow_env_token`.
+- **Progreso** (`api/progress.py`, `progress/`): `GET .../assignments/{a}/repos/{owner}/progress`
+  (progreso del alumno; misma autorización que el histórico) y `GET .../assignments/{a}/progress`
+  (evolución de la clase; **solo staff**). Se calcula al leer sobre `analyses` + `git log`; la
+  vista de clase **agrega** el progreso de cada alumno (una sola fuente de verdad).
 - **Superficie alumno** (`api/me.py`): `GET /me/assignments` (descubrimiento desde la BD: lo que el
   profesor ya descargó/analizó para el login).
 - **Agente** (`agent/`): worker con proveedor `mock` por defecto (`ZUZENAA_LLM_PROVIDER`);
   guardarraíles; escribe snapshot + `feedback.md` + `analyses.json` y la fila `analyses`.
   El contexto es **real**: `agent/context.py` resume el clon local (árbol, lenguajes, señales)
   y calcula el **diff acotado** (`ZUZENAA_AGENT_MAX_DIFF_CHARS`) contra el commit del
-  análisis anterior; el proveedor recibe ese contexto, no una plantilla genérica.
+  análisis anterior; el proveedor recibe ese contexto, no una plantilla genérica. También
+  recibe el **resultado de los tests** del commit (`github/results.py`, solo lectura; hoy solo
+  en modo demo), que se guarda en `feedback_json.tests`.
+- **Modo demo** (`ZUZENAA_DEMO_MODE=true`, `docs/06-datos-de-prueba.md`): emula Classroom 50 en
+  local; `POST /demo/.../repos/{owner}/push` simula un push (tests + descarga + análisis).
 - El adaptador `gh` (`github/cli.py`) es **solo lectura**.
 
 ## Estructura en disco y BD

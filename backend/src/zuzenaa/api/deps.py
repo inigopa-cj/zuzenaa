@@ -73,7 +73,21 @@ async def get_github_token(request: Request, session: SessionDep) -> str:
     raise _unauthorized()
 
 
-def get_gh_cli(token: Annotated[str, Depends(get_github_token)]) -> GhCli:
+GithubTokenDep = Annotated[str, Depends(get_github_token)]
+
+
+def get_gh_cli(token: GithubTokenDep) -> GhCli:
+    if settings.demo_mode:
+        # Modo demo: el CLI real se sustituye por un runner in-process que emula
+        # Classroom 50 con el dataset ficticio (ver docs/06-datos-de-prueba.md).
+        from zuzenaa.demo.gh_runner import make_demo_runner
+
+        return GhCli(
+            token=token,
+            gh_binary=settings.gh_binary,
+            timeout=settings.gh_timeout,
+            runner=make_demo_runner(),
+        )
     return GhCli(token=token, gh_binary=settings.gh_binary, timeout=settings.gh_timeout)
 
 

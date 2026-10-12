@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { api } from '../api'
 import { classroom50Assignment, useClassroom50 } from '../classroom50'
 import { useOrg } from '../components/AppLayout'
 import { ExternalLink } from '../components/ExternalLink'
+import { ClassEvolutionPanel } from '../components/Progress'
 import { ErrorNote } from './ClassroomsPage'
 
 function fmt(value: number | null): string {
@@ -23,6 +25,21 @@ export function AssignmentPage({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
+  const [tab, setTab] = useState<'entregas' | 'evolucion'>('entregas')
+  const evolution = useQuery({
+    queryKey: ['classProgress', org, classroom, assignment],
+    queryFn: () => api.classProgress(org, classroom, assignment),
+    enabled: org.length > 0 && tab === 'evolucion',
+  })
+  const openStudent = (owner: string) =>
+    void navigate({
+      to: '/classrooms/$classroom/assignments/$assignment/students/$owner',
+      params: { classroom, assignment, owner },
+    })
+
+  const authStatus = useQuery({ queryKey: ['authStatus'], queryFn: api.authStatus, retry: false })
+  const demoMode = authStatus.data?.demo_mode ?? false
+
   const repos = useQuery({
     queryKey: ['repos', org, classroom, assignment],
     queryFn: () => api.repos(org, classroom, assignment),
@@ -36,7 +53,10 @@ export function AssignmentPage({
 
   const analyzeAll = useMutation({
     mutationFn: () => api.analyze(org, classroom, assignment),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['repos', org, classroom, assignment] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['repos', org, classroom, assignment] })
+      void queryClient.invalidateQueries({ queryKey: ['classProgress', org, classroom, assignment] })
+    },
   })
 
   return (
@@ -69,7 +89,7 @@ export function AssignmentPage({
               type="button"
               disabled={analyzeAll.isPending}
               onClick={() => {
-                if (window.confirm('¿Analizar la entrega de todos los alumnos descargados?')) {
+                if (window.confirm('¿Descargar el último push de todos los alumnos y analizarlo?')) {
                   analyzeAll.mutate()
                 }
               }}
@@ -87,22 +107,50 @@ export function AssignmentPage({
         {analyzeAll.isSuccess ? (
           <p className="note ok">
             {analyzeAll.data.filter((o) => o.status === 'analysed').length} analizados,{' '}
-            {analyzeAll.data.filter((o) => o.status === 'cached').length} en caché.
+            {analyzeAll.data.filter((o) => o.status === 'cached').length} sin cambios (ya analizados),{' '}
+            {analyzeAll.data.filter((o) => o.status === 'error').length} con error.
           </p>
         ) : null}
         {analyzeAll.isError ? <ErrorNote message={analyzeAll.error.message} /> : null}
       </header>
 
-      {repos.isPending && <p className="muted">Cargando repos…</p>}
-      {repos.isError && <ErrorNote message={repos.error.message} />}
-      {repos.isSuccess && repos.data.length === 0 && (
+      <div className="tabs" role="tablist" aria-label="Vistas del assignment">
+        <button
+          type="button"
+          role="tab"
+          className="tab"
+          aria-selected={tab === 'entregas'}
+          onClick={() => setTab('entregas')}
+        >
+          Entregas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className="tab"
+          aria-selected={tab === 'evolucion'}
+          onClick={() => setTab('evolucion')}
+        >
+          Evolución de la clase
+        </button>
+      </div>
+
+      {tab === 'evolucion' && evolution.isPending ? <p className="muted">Calculando evolución…</p> : null}
+      {tab === 'evolucion' && evolution.isError ? <ErrorNote message={evolution.error.message} /> : null}
+      {tab === 'evolucion' && evolution.isSuccess ? (
+        <ClassEvolutionPanel evolution={evolution.data} onStudent={openStudent} />
+      ) : null}
+
+      {tab === 'entregas' && repos.isPending && <p className="muted">Cargando repos…</p>}
+      {tab === 'entregas' && repos.isError && <ErrorNote message={repos.error.message} />}
+      {tab === 'entregas' && repos.isSuccess && repos.data.length === 0 && (
         <section className="empty">
           <h2>Sin repos descargados</h2>
           <p>Pulsa «Descargar repos» para clonar los repositorios de los alumnos a este servidor.</p>
         </section>
       )}
 
-      {repos.isSuccess && repos.data.length > 0 && (
+      {tab === 'entregas' && repos.isSuccess && repos.data.length > 0 && (
         <table className="table">
           <thead>
             <tr>
@@ -131,12 +179,8 @@ export function AssignmentPage({
                     classroom={classroom}
                     assignment={assignment}
                     owner={repo.owner}
-                    onHistory={() =>
-                      void navigate({
-                        to: '/classrooms/$classroom/assignments/$assignment/students/$owner',
-                        params: { classroom, assignment, owner: repo.owner },
-                      })
-                    }
+                    demoMode={demoMode}
+                    onHistory={() => openStudent(repo.owner)}
                   />
                 </td>
               </tr>
@@ -153,24 +197,55 @@ function RepoActions({
   classroom,
   assignment,
   owner,
+  demoMode,
   onHistory,
 }: {
   org: string
   classroom: string
   assignment: string
   owner: string
+  demoMode: boolean
   onHistory: () => void
 }) {
   const queryClient = useQueryClient()
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['repos', org, classroom, assignment] })
+    void queryClient.invalidateQueries({ queryKey: ['history', org, classroom, assignment, owner] })
+    void queryClient.invalidateQueries({ queryKey: ['progress', org, classroom, assignment, owner] })
+    void queryClient.invalidateQueries({ queryKey: ['classProgress', org, classroom, assignment] })
+  }
   const analyze = useMutation({
     mutationFn: (force: boolean) =>
       api.analyze(org, classroom, assignment, { owner, force }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['repos', org, classroom, assignment] }),
+    onSuccess: refresh,
+  })
+  // Modo demo: el alumno sube su siguiente revisión; Classroom 50 corre los tests y
+  // ZuzenAA descarga y analiza sin pulsar «Analizar».
+  const push = useMutation({
+    mutationFn: () => api.demoPush(org, classroom, assignment, owner),
+    onSuccess: refresh,
   })
   return (
     <span className="actions">
-      <button type="button" className="link-button" disabled={analyze.isPending} onClick={() => analyze.mutate(false)}>
-        Analizar
+      {demoMode ? (
+        <button
+          type="button"
+          className="link-button"
+          disabled={push.isPending}
+          title="Demo: el alumno hace commit + push de su siguiente revisión"
+          onClick={() => push.mutate()}
+        >
+          {push.isPending ? 'Subiendo…' : 'Simular push'}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="link-button"
+        disabled={analyze.isPending}
+        title="Descarga el último push y lo analiza"
+        onClick={() => analyze.mutate(false)}
+      >
+        {analyze.isPending ? 'Analizando…' : 'Analizar'}
       </button>
       <button type="button" className="link-button" disabled={analyze.isPending} onClick={() => analyze.mutate(true)}>
         Reanalizar
@@ -178,6 +253,20 @@ function RepoActions({
       <button type="button" className="link-button" onClick={onHistory}>
         Ver ficha
       </button>
+      {push.isSuccess ? (
+        <span className="dim">
+          {push.data.commit_sha.slice(0, 7)} · tests {push.data.tests.passed}/{push.data.tests.total} ·{' '}
+          {push.data.analysis.status}
+        </span>
+      ) : null}
+      {push.isError ? <span className="dim">{push.error.message}</span> : null}
+      {analyze.isSuccess && analyze.data[0] ? (
+        <span className="dim">
+          {analyze.data[0].status === 'cached' ? 'sin cambios' : analyze.data[0].status}
+          {analyze.data[0].reason ? ` · ${analyze.data[0].reason}` : ''}
+        </span>
+      ) : null}
+      {analyze.isError ? <span className="dim">{analyze.error.message}</span> : null}
     </span>
   )
 }

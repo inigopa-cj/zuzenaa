@@ -29,15 +29,16 @@ async def sync_assignment(
     assignment: str,
     owners: list[str],
     token: str,
-    clone_url_template: str = "https://github.com/{org}/{repo}.git",
+    clone_url_template: str | None = None,
 ) -> SyncSummary:
     """Clone/update each owner's repo and record state in the DB."""
+    template = clone_url_template or settings.git_clone_url_template
     cloned = updated = skipped = errors = 0
     now = now_epoch()
 
     for owner in owners:
         full_name = paths.repo_full_name(org, classroom, assignment, owner)
-        clone_url = clone_url_template.format(org=org, repo=full_name)
+        clone_url = template.format(org=org, repo=full_name)
         local = paths.repo_path(org, classroom, assignment, owner)
         try:
             result = await git.sync_repo(

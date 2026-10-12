@@ -18,7 +18,9 @@ from zuzenaa.agent import context as agent_context
 from zuzenaa.config import settings
 from zuzenaa.db.models import Analysis, Repository
 from zuzenaa.db.session import SessionLocal
+from zuzenaa.github.results import load_test_results
 from zuzenaa.repos import paths
+from zuzenaa.repos import service as repo_service
 from zuzenaa.util import now_epoch
 
 
@@ -32,7 +34,12 @@ class AnalyzeOutcome:
 
 
 def _build_context(
-    *, repo: Repository, evolution: str | None, code: dict[str, object]
+    *,
+    repo: Repository,
+    evolution: str | None,
+    code: dict[str, object],
+    tests: dict[str, object] | None,
+    previous_tests: dict[str, object] | None,
 ) -> dict[str, object]:
     return {
         "classroom": repo.classroom,
@@ -41,7 +48,20 @@ def _build_context(
         "commit": repo.head_sha,
         "evolution": evolution,
         "repo": code,
+        # Resultado de los tests de Classroom 50 para este commit (leído, no ejecutado).
+        "tests": tests,
+        "previous_tests": previous_tests,
     }
+
+
+def _stored_tests(analysis: Analysis) -> dict[str, object] | None:
+    """Resultado de tests guardado con un análisis anterior (si lo tenía)."""
+    try:
+        payload = json.loads(analysis.feedback_json)
+    except json.JSONDecodeError:
+        return None
+    tests = payload.get("tests") if isinstance(payload, dict) else None
+    return tests if isinstance(tests, dict) else None
 
 
 def _previous_summary(previous: Analysis) -> str:
@@ -56,10 +76,8 @@ def _previous_summary(previous: Analysis) -> str:
     return previous.feedback_md[:1000]
 
 
-def _snapshot(
-    repo: Repository, commit_sha: str
-) -> Path:
-    stamp = now_epoch()
+def _snapshot(repo: Repository, commit_sha: str, *, created_at: int | None = None) -> Path:
+    stamp = created_at if created_at is not None else now_epoch()
     dest = paths.snapshots_dir(repo.org, repo.classroom, repo.assignment, repo.owner) / (
         f"{stamp}-{commit_sha[:7]}"
     )
@@ -88,8 +106,11 @@ async def _previous_analysis(repository_id: int, commit_sha: str) -> Analysis | 
 
 
 async def analyze_repository(
-    repo: Repository, *, force: bool = False
+    repo: Repository, *, force: bool = False, created_at: int | None = None
 ) -> AnalyzeOutcome:
+    # ``created_at`` solo lo usa el modo demo, para fechar cada análisis en su
+    # commit (el histórico y el progreso ordenan por esta fecha). Por defecto: ahora.
+    now = created_at if created_at is not None else now_epoch()
     if not repo.head_sha:
         return AnalyzeOutcome(owner=repo.owner, status="error", reason="repo sin HEAD")
     if not Path(repo.path).is_dir():
@@ -125,23 +146,35 @@ async def analyze_repository(
     if previous is not None:
         code_context["previous_feedback"] = _previous_summary(previous)
 
+    test_results = await load_test_results(
+        org=repo.org, repo_full_name=repo.repo_full_name, commit_sha=repo.head_sha
+    )
+    tests = test_results.to_dict() if test_results is not None else None
+
     worker = AgentWorker(get_provider())
     result = await worker.run(
-        _build_context(repo=repo, evolution=evolution, code=code_context)
+        _build_context(
+            repo=repo,
+            evolution=evolution,
+            code=code_context,
+            tests=tests,
+            previous_tests=_stored_tests(previous) if previous is not None else None,
+        )
     )
     if not result.posted:
         return AnalyzeOutcome(
             owner=repo.owner, status="blocked", reason=result.reason
         )
 
-    snapshot = _snapshot(repo, repo.head_sha)
+    snapshot = _snapshot(repo, repo.head_sha, created_at=now)
     (snapshot / "feedback.md").write_text(result.body)
 
     payload: dict[str, object] = {"provider": result.provider}
     if result.feedback is not None:
         payload |= result.feedback.model_dump()
+    if tests is not None:
+        payload["tests"] = tests
     feedback_json = json.dumps(payload, ensure_ascii=False)
-    now = now_epoch()
     async with SessionLocal() as session:
         analysis = Analysis(
             repository_id=repo.id,
@@ -167,6 +200,57 @@ async def analyze_repository(
         commit_sha=repo.head_sha,
         analysis_id=analysis_id,
     )
+
+
+async def sync_and_analyze(
+    *,
+    org: str,
+    classroom: str,
+    assignment: str,
+    owners: list[str],
+    token: str,
+    clone_url_template: str | None = None,
+    force: bool = False,
+) -> list[AnalyzeOutcome]:
+    """Descarga el último push de cada alumno y lo analiza.
+
+    Es el camino de «Analizar» y del push (simulado en la demo): siempre se analiza
+    el commit más reciente, no lo que hubiera descargado antes. Si el commit ya
+    estaba analizado devuelve ``cached`` (salvo ``force``). Si la descarga falla no
+    se analiza código viejo: el alumno sale como ``error`` con el motivo.
+    """
+    await repo_service.sync_assignment(
+        org=org,
+        classroom=classroom,
+        assignment=assignment,
+        owners=owners,
+        token=token,
+        clone_url_template=clone_url_template,
+    )
+    async with SessionLocal() as session:
+        stmt = select(Repository).where(
+            Repository.org == org,
+            Repository.classroom == classroom,
+            Repository.assignment == assignment,
+            Repository.owner.in_(owners),
+        )
+        repos = {row.owner: row for row in (await session.execute(stmt)).scalars().all()}
+
+    outcomes: list[AnalyzeOutcome] = []
+    for owner in owners:
+        repo = repos.get(owner)
+        if repo is None or repo.status == "error":
+            detail = repo.detail if repo is not None else None
+            outcomes.append(
+                AnalyzeOutcome(
+                    owner=owner,
+                    status="error",
+                    reason=f"no se pudo descargar el último push: {detail or 'sin repo'}",
+                )
+            )
+            continue
+        outcomes.append(await analyze_repository(repo, force=force))
+    return outcomes
 
 
 def _append_index(repo: Repository, *, commit_sha: str, created_at: int, provider: str) -> None:

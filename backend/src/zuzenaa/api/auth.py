@@ -56,6 +56,7 @@ async def auth_status() -> dict[str, object]:
         "scopes": settings.github_oauth_scopes,
         "callback_url": settings.oauth_redirect_uri,
         "classroom50_url": settings.classroom50_url.rstrip("/"),
+        "demo_mode": settings.demo_mode,
     }
 
 

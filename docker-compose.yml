@@ -42,7 +42,8 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      # Puerto local configurable (por defecto 8080). Útil si 8080 está ocupado en tu equipo.
+      - "${ZUZENAA_WEB_PORT:-8080}:80"
     restart: unless-stopped
 
 volumes:

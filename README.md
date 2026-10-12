@@ -53,8 +53,10 @@ centra en la **revisión cualitativa**:
 1. **Descargar** los repositorios de los alumnos al servidor (clon completo en disco).
 2. **Analizar** el código local con un agente que genera feedback estructurado (sin dar la
    solución).
-3. **Histórico y progreso**: cada análisis queda registrado con su commit y su fecha, y se puede
-   ver la evolución del alumno a lo largo de las entregas.
+3. **Histórico y progreso**: cada análisis queda registrado con su commit y su fecha. Sobre ese
+   histórico se calcula el **progreso del alumno** (curva de tests, regresiones, pistas que se
+   repiten, ritmo de commits) y la **evolución de la clase** (qué tests cuestan más, quién necesita
+   atención).
 4. **Memoria del curso**: repos + snapshots archivados en disco, exportables (`analyses.json`).
 
 El feedback **vive solo en esta plataforma**; no se publica en GitHub.
@@ -66,13 +68,16 @@ El feedback **vive solo en esta plataforma**; no se publica en GitHub.
 - Elige organización → clase → assignment (lectura de Classroom 50).
 - **Descarga** los repos del roster del assignment al servidor.
 - **Analiza** uno o todos los alumnos y guarda histórico con fecha y commit.
-- Ve la **ficha de cada alumno**: cronología de revisiones (progreso) y feedback completo.
+- Ve la **ficha de cada alumno**: resumen de su evolución, cronología de revisiones (progreso) y
+  feedback completo.
+- Ve la **evolución de la clase** en cada assignment: media de puntos por día, tests que más
+  cuestan, pistas comunes y alumnos que necesitan atención.
 - Enlaces directos **«Ver en Classroom 50»** por clase y assignment.
 
 ### Alumnado
 
 - Entra con GitHub y ve **Mis clases**: sus entregas ya descargadas/analizadas.
-- Consulta **todo su histórico** de feedback y su progreso, en solo lectura.
+- Consulta **todo su histórico** de feedback y el resumen de su progreso, en solo lectura.
 - Un alumno **solo ve lo suyo** (autorización por sesión).
 
 ## Capturas
@@ -212,10 +217,12 @@ Referencia completa y puesta en marcha: [`docs/05-guia-configuracion.md`](docs/0
 
 - **Revisar una entrega concreta**: clase → assignment → ficha del alumno → último análisis.
 - **Evaluar toda la clase**: assignment → **Analizar todos** → revisar fichas una a una.
-- **Seguir la evolución de un alumno**: ficha → pestaña **Progreso** (commits ordenados en el
+- **Ver cómo va la clase**: assignment → pestaña **Evolución de la clase** → abrir a quien tenga
+  avisos.
+- **Seguir la evolución de un alumno**: ficha → pestaña **Progreso** (resumen + commits ordenados en el
   tiempo).
-- **Reanálisis tras un commit nuevo**: **Descargar repos** (actualiza clones) → **Analizar**
-  (cachea si no cambió el commit).
+- **Reanálisis tras un commit nuevo**: **Analizar** (descarga el último push antes de analizar;
+  si el commit no cambió, devuelve el análisis guardado).
 - **Saltar a Classroom 50**: enlaces **«Ver en Classroom 50»** por clase y assignment.
 - **El alumno ve lo suyo**: **Mis clases** (solo lectura).
 
@@ -237,6 +244,7 @@ make test-all   # todo
 | [`docs/03-flujo-y-fases.md`](docs/03-flujo-y-fases.md) | Flujo profesor/alumno, fases (R0+) y pendientes. |
 | [`docs/04-autenticacion.md`](docs/04-autenticacion.md) | Autenticación GitHub OAuth (detalle). |
 | [`docs/05-guia-configuracion.md`](docs/05-guia-configuracion.md) | **Guía paso a paso** de puesta en marcha. |
+| [`docs/06-datos-de-prueba.md`](docs/06-datos-de-prueba.md) | Modo demo: dataset ficticio para ver la plataforma sin GitHub. |
 | [`docs/diagramas/`](docs/diagramas/README.md) | Casos de uso y secuencias. |
 
 ## Seguridad y privacidad

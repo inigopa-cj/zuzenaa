@@ -41,7 +41,8 @@ flowchart LR
   **histórico** por alumno y **progreso**.
 - **Superficie alumno**: sus clases/assignments; por repo, **todo su histórico** de feedback
   (fecha + commit) y progreso.
-- Navegación: Clases → Clase → Assignment (Repos / Análisis / Histórico / Progreso) y Ajustes.
+- Navegación: Clases → Clase → Assignment (Entregas / **Evolución de la clase**) → Ficha del
+  alumno (Progreso / Histórico) y Ajustes.
 
 ### 2.2 Backend (FastAPI)
 
@@ -49,7 +50,9 @@ flowchart LR
 - **Lectura de Classroom 50** (solo lectura): `gh teacher classroom/assignment/roster list`.
 - **Repo Manager**: clona/actualiza repos de alumnos en disco y crea snapshots.
 - **Agente** (worker): lee el código local, llama al LLM, guarda el feedback.
-- **Evolución**: compara análisis sucesivos de un alumno.
+- **Evolución**: cada análisis se compara con el anterior (diff, feedback y tests).
+- **Progreso** (`progress/`): métricas sobre el histórico completo, por alumno y agregadas por
+  clase (ver §3.3).
 - **Tutor RAG** (futuro, R5): recuperación sobre el material del curso + generación con el mismo
   gateway LLM y guardarraíles, con citas de las fuentes.
 - **Persistencia**: BD (metadatos/estado) + disco (código).
@@ -84,6 +87,16 @@ sequenceDiagram
 
 ### 3.2 Analizar con el agente
 
+El análisis se lanza en dos momentos y siempre sobre el **último push** del alumno
+(`agent/service.py: sync_and_analyze`):
+
+- Al pulsar **Analizar** / **Analizar todos**: primero descarga, luego analiza.
+- Al hacer **push**: hoy solo en el modo demo («Simular push», `docs/06-datos-de-prueba.md`).
+  Con GitHub real (webhook o sondeo) está pendiente.
+
+Si el commit ya estaba analizado devuelve el análisis guardado (`cached`); **Reanalizar** fuerza
+uno nuevo. Si la descarga falla, el alumno sale como `error` y no se analiza código viejo.
+
 ```mermaid
 sequenceDiagram
     actor P as Profesor
@@ -94,6 +107,7 @@ sequenceDiagram
     participant DB as BD
     P->>W: Analizar (alumno o todos)
     W->>B: POST /analysis {scope}
+    B->>FS: descargar el último push (git fetch + reset)
     B->>FS: leer repo local + diff/snapshot
     B->>DB: ¿hay análisis de este commit? (cache; forzar opcional)
     alt no cacheado o forzar
@@ -107,8 +121,32 @@ sequenceDiagram
 
 ### 3.3 Ver histórico y progreso
 
-- Lista de análisis por alumno/repo, ordenada por fecha, con commit y feedback.
-- Progreso: serie temporal a lo largo de los commits/entregas.
+- **Histórico**: lista de análisis por alumno/repo, ordenada por fecha, con commit, feedback y tests.
+- **Progreso del alumno** (ficha → «Progreso»; alumno y profesorado):
+  `GET .../assignments/{a}/repos/{owner}/progress`. Curva de puntos de tests por revisión, cuándo
+  empezó a pasar cada test y si se rompió después (regresiones), pista que se repite, ritmo de
+  trabajo (commits, días con actividad, tamaño) y avisos. Incluye un resumen formativo.
+- **Evolución de la clase** (assignment → «Evolución de la clase»; **solo profesorado**):
+  `GET .../assignments/{a}/progress`. Media diaria de puntos, tasa de aprobado por test (el que más
+  cuesta primero), pistas comunes y alumnos con avisos.
+
+```mermaid
+flowchart TD
+    A[analyses por commit<br/>feedback + tests] --> M[métricas por alumno<br/>progress/metrics.py]
+    G[git log del clon<br/>incluye commits sin analizar] --> M
+    M --> P[Progreso del alumno]
+    M -->|agregación| C[Evolución de la clase]
+```
+
+- **Una sola fuente de verdad**: la evolución de la clase agrega el progreso de cada alumno; nunca
+  se calcula aparte, así ambos cuentan lo mismo.
+- **Se calcula al leer** (no hay tabla nueva): son operaciones baratas sobre la BD y el `git log`,
+  y así siempre está al día tras un push o un «Analizar».
+- **Resúmenes deterministas** (plantillas, como el proveedor `mock`): orientan sin dar la solución.
+  Si un LLM real los redacta, se cachearán por el último análisis incluido.
+- **Avisos**: `sin_analisis`, `regresion` (la última revisión rompe tests que pasaban),
+  `pista_repetida` (misma pista en ≥ 3 revisiones seguidas y aún quedan tests),
+  `sin_avance` (≥ 7 días sin commits con tests pendientes).
 
 ## 4. Seguridad y coste
 

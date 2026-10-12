@@ -81,6 +81,9 @@ const myClassesRoute = createRoute({
 const studentFeedbackRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/mis-clases/$org/$classroom/$assignment/$owner',
+  // ?tutor=<id|latest>: abre el tutor sobre esa corrección al entrar.
+  validateSearch: (search: Record<string, unknown>): { tutor?: string } =>
+    search.tutor === undefined ? {} : { tutor: String(search.tutor) },
   component: () => {
     const { org, classroom, assignment, owner } = useParams({
       from: studentFeedbackRoute.id,

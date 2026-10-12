@@ -134,18 +134,35 @@ function AssignmentCard({ item }: { item: MyAssignment }) {
           {item.last_commit_at ? ` · último commit ${fmtDateTime(item.last_commit_at)}` : ''}
         </span>
         {!notAccepted ? (
-          <Link
-            className="link-action"
-            to="/mis-clases/$org/$classroom/$assignment/$owner"
-            params={{
-              org: item.org,
-              classroom: item.classroom,
-              assignment: item.assignment,
-              owner: item.owner,
-            }}
-          >
-            Ver mi progreso →
-          </Link>
+          <span className="actions">
+            {item.analyses > 0 ? (
+              <Link
+                className="link-action"
+                to="/mis-clases/$org/$classroom/$assignment/$owner"
+                params={{
+                  org: item.org,
+                  classroom: item.classroom,
+                  assignment: item.assignment,
+                  owner: item.owner,
+                }}
+                search={{ tutor: 'latest' }}
+              >
+                Preguntar al tutor
+              </Link>
+            ) : null}
+            <Link
+              className="link-action"
+              to="/mis-clases/$org/$classroom/$assignment/$owner"
+              params={{
+                org: item.org,
+                classroom: item.classroom,
+                assignment: item.assignment,
+                owner: item.owner,
+              }}
+            >
+              Ver mi progreso →
+            </Link>
+          </span>
         ) : null}
       </footer>
     </article>

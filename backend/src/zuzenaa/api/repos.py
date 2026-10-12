@@ -2,12 +2,12 @@
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from zuzenaa.api.analyses import require_staff
 from zuzenaa.api.deps import GhCliDep, OptionalUserDep
 from zuzenaa.config import settings
-from zuzenaa.db.models import Repository
+from zuzenaa.db.models import Repository, TutorShare
 from zuzenaa.db.session import SessionLocal
 from zuzenaa.github.cli import GhError
 from zuzenaa.privacy import pseudonyms
@@ -28,6 +28,7 @@ class RepositoryOut(BaseModel):
     last_synced_at: int | None
     status: str
     detail: str | None
+    pending_questions: int = 0  # dudas enviadas desde el tutor y aún sin leer
 
 
 class SyncOut(BaseModel):
@@ -55,6 +56,21 @@ async def list_repos(
         )
         rows = (await session.execute(stmt)).scalars().all()
     names = await pseudonyms.aliases_for_logins(org, classroom, [row.owner for row in rows])
+    async with SessionLocal() as session:
+        pending = dict(
+            (
+                await session.execute(
+                    select(TutorShare.owner, func.count(TutorShare.id))
+                    .where(
+                        TutorShare.org == org,
+                        TutorShare.classroom == classroom,
+                        TutorShare.assignment == assignment,
+                        TutorShare.read_at.is_(None),
+                    )
+                    .group_by(TutorShare.owner)
+                )
+            ).all()
+        )
     out = [
         RepositoryOut(
             id=row.id,
@@ -65,6 +81,7 @@ async def list_repos(
             last_synced_at=row.last_synced_at,
             status=row.status,
             detail=await pseudonyms.scrub_text(org, classroom, row.owner, row.detail),
+            pending_questions=pending.get(row.owner.lower(), 0),
         )
         for row in rows
     ]

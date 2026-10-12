@@ -14,6 +14,7 @@ Ejecuta ``python -m zuzenaa.demo.seed`` (dentro del contenedor del backend) para
    análisis en la fecha de su commit (``created_at``) para que el histórico y el
    progreso se ordenen como en la vida real. Las revisiones restantes quedan
    pendientes para pulsar «Analizar» en vivo.
+4. Indexar el **material del tutor** de la clase (``demo/material/*.md``).
 
 Es idempotente: volver a ejecutarlo reconstruye los orígenes y reutiliza los
 análisis ya existentes (mismo commit => ``cached``).
@@ -43,6 +44,7 @@ from zuzenaa.github.models import Student
 from zuzenaa.privacy import pseudonyms
 from zuzenaa.repos import paths
 from zuzenaa.repos import service as repo_service
+from zuzenaa.tutor import store as tutor_store
 from zuzenaa.util import now_epoch
 
 
@@ -210,13 +212,37 @@ async def _seed_analyses(
     return analysed
 
 
+MATERIAL_DIR = Path(__file__).parent / "material"
+
+
+async def _seed_tutor_material(org: str) -> None:
+    await tutor_store.ensure_builtin()
+    existing = {doc.filename for doc in await tutor_store.documents(org, dataset.ACTIVE_CLASSROOM)}
+    for path in sorted(MATERIAL_DIR.glob("*.md")):
+        if path.name in existing:
+            continue
+        text = path.read_text(encoding="utf-8")
+        await tutor_store.ingest(
+            title=text.splitlines()[0].lstrip("# ").strip(),
+            text=text,
+            source="material",
+            org=org,
+            classroom=dataset.ACTIVE_CLASSROOM,
+            filename=path.name,
+            uploaded_by="irakasle-miren",
+        )
+
+
 async def seed(*, today: date | None = None) -> SeedSummary:
     day = today or datetime.now(UTC).date()
     await init_models()
 
     state = dataset.default_state(day)
     users = await user_names()
-    injected = list(users)
+    # Solo los usuarios reales reciben una entrega inyectada; los alumnos del dataset
+    # que inician sesión (para probar la superficie del alumno) ya tienen la suya.
+    dataset_logins = {student["username"] for student in state.students}
+    injected = [login for login in users if login not in dataset_logins]
     origins = origins_root()
     origins.mkdir(parents=True, exist_ok=True)
 
@@ -277,6 +303,9 @@ async def seed(*, today: date | None = None) -> SeedSummary:
     analyses = 0
     for assignment, owner, spec in submissions:
         analyses += await _seed_analyses(state, assignment, owner, spec, day)
+
+    # 4. Material del tutor de la clase (apuntes ficticios), sin duplicar.
+    await _seed_tutor_material(state.org)
 
     return SeedSummary(
         origins=len(submissions), repos=repos, analyses=analyses, errors=errors

@@ -45,6 +45,17 @@ def _iter_text(feedback: AgentFeedback) -> list[tuple[str, str]]:
     return fields
 
 
+def text_violation(text: str) -> str | None:
+    """Motivo por el que un texto no puede mostrarse (código o solución), o ``None``."""
+    if _CODE_FENCE.search(text):
+        return "contiene un bloque de código"
+    if _LINE_OF_CODE.search(text):
+        return "parece contener código"
+    if _SOLUTION_WORDS.search(text):
+        return "entrega la solución"
+    return None
+
+
 def enforce(feedback: AgentFeedback) -> None:
     """Raise GuardrailViolation if the feedback breaks the rules."""
     for field, text in _iter_text(feedback):

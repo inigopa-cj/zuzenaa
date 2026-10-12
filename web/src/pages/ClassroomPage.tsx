@@ -8,6 +8,7 @@ import {
 } from '../classroom50'
 import { useOrg } from '../components/AppLayout'
 import { ExternalLink } from '../components/ExternalLink'
+import { TutorMaterial } from '../components/TutorMaterial'
 import { ErrorNote } from './ClassroomsPage'
 
 export function ClassroomPage({ classroom }: { classroom: string }) {
@@ -73,6 +74,8 @@ export function ClassroomPage({ classroom }: { classroom: string }) {
           ))}
         </ul>
       )}
+
+      {org ? <TutorMaterial org={org} classroom={classroom} /> : null}
     </section>
   )
 }

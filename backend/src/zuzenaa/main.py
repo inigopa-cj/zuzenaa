@@ -14,6 +14,7 @@ from zuzenaa.api.me import router as me_router
 from zuzenaa.api.orgs import router as orgs_router
 from zuzenaa.api.progress import router as progress_router
 from zuzenaa.api.repos import router as repos_router
+from zuzenaa.api.tutor import router as tutor_router
 from zuzenaa.config import settings
 from zuzenaa.db.session import init_models
 
@@ -21,6 +22,10 @@ from zuzenaa.db.session import init_models
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_models()
+    # Guía de ZuzenAA en el corpus del tutor (idempotente: solo reindexa si cambió).
+    from zuzenaa.tutor.store import ensure_builtin
+
+    await ensure_builtin()
     app.state.http = httpx.AsyncClient()
     try:
         yield
@@ -41,6 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(repos_router)
     app.include_router(analyses_router)
     app.include_router(progress_router)
+    app.include_router(tutor_router)
     app.include_router(demo_router)
 
     return app

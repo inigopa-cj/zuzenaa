@@ -166,6 +166,14 @@ export function AssignmentPage({
               <tr key={repo.id}>
                 <td>
                   <code>{repo.owner}</code>
+                  {repo.pending_questions > 0 ? (
+                    <>
+                      {' '}
+                      <span className="badge badge-alert" title="Dudas enviadas desde el tutor sin leer">
+                        {repo.pending_questions} duda(s)
+                      </span>
+                    </>
+                  ) : null}
                 </td>
                 <td>
                   <span className={`dot ${repo.status === 'ok' ? 'success' : 'error'}`} aria-hidden="true" />{' '}

@@ -1,10 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { api, type Analysis } from '../api'
 import { useOrg } from '../components/AppLayout'
 import { FeedbackBody, TestsBadge, fmtDateTime, shortSha } from '../components/Feedback'
 import { StudentProgressPanel } from '../components/Progress'
+import { TutorPanel } from '../components/TutorPanel'
+import { TutorShares } from '../components/TutorShares'
 import { useViewer } from '../components/Viewer'
 import { ErrorNote } from './ClassroomsPage'
 
@@ -24,8 +26,15 @@ export function StudentPage({
   const studentSurface = orgProp !== undefined
   const [tab, setTab] = useState<'progreso' | 'historico'>('progreso')
 
-  const { preview, setPreview } = useViewer()
+  const { preview, setPreview, role } = useViewer()
   const navigate = useNavigate()
+  // ?tutor=<id de corrección|latest> abre el tutor al entrar (desde «Mis entregas»).
+  const search = useRouterState({ select: (state) => state.location.search }) as {
+    tutor?: string | number
+  }
+  const [tutorId, setTutorId] = useState<number | 'latest' | null>(() =>
+    search.tutor === undefined ? null : search.tutor === 'latest' ? 'latest' : Number(search.tutor),
+  )
   // La lista de repos es de profesorado; el alumno lee su entrega de /me/assignments.
   const repos = useQuery({
     queryKey: ['repos', org, classroom, assignment],
@@ -64,9 +73,20 @@ export function StudentPage({
       : repos.data?.find((item) => item.owner === owner)) ?? null
   const reviews = history.data ?? []
   const ascending = [...reviews].reverse()
+  // El tutor se abre desde una corrección y solo en la superficie del alumno (o su vista previa).
+  const tutorAnalysis = studentSurface
+    ? (tutorId === 'latest' ? reviews[0] : reviews.find((item) => item.id === tutorId)) ?? null
+    : null
+  const askTutor = (item: Analysis) =>
+    studentSurface ? (
+      <button type="button" className="link-button" onClick={() => setTutorId(item.id)}>
+        Preguntar al tutor
+      </button>
+    ) : null
 
   return (
-    <section>
+    <section className={tutorAnalysis ? 'split' : undefined}>
+      <div className="split-main">
       <nav className="crumbs">
         {studentSurface ? (
           <Link to="/mis-clases">Mis entregas</Link>
@@ -139,6 +159,14 @@ export function StudentPage({
         {reviews.length > 0 ? <Pulse reviews={reviews} /> : null}
       </header>
 
+      <TutorShares
+        org={org}
+        classroom={classroom}
+        assignment={assignment}
+        owner={owner}
+        teacher={!studentSurface}
+      />
+
       {history.isPending && <p className="muted">Cargando histórico…</p>}
       {history.isError && <ErrorNote message={history.error.message} />}
       {history.isSuccess && reviews.length === 0 && (
@@ -193,6 +221,7 @@ export function StudentPage({
                         </time>
                         {item.tests ? <TestsBadge tests={item.tests} /> : null}
                         {latest ? <span className="badge">última</span> : null}
+                        {askTutor(item)}
                       </div>
                       <p className="timeline-summary">
                         {item.feedback
@@ -215,7 +244,8 @@ export function StudentPage({
                     <code>{shortSha(item.commit_sha)}</code>
                     <span className="dim"> · {fmtDateTime(item.created_at)}</span>
                     <span className="dim"> · {item.provider}</span>
-                    {item.tests ? <> <TestsBadge tests={item.tests} /></> : null}
+                    {item.tests ? <> <TestsBadge tests={item.tests} /></> : null}{' '}
+                    {askTutor(item)}
                   </header>
                   {item.evolution ? <p className="muted">{item.evolution}</p> : null}
                   <FeedbackBody analysis={item} />
@@ -225,6 +255,20 @@ export function StudentPage({
           )}
         </>
       )}
+      </div>
+      {tutorAnalysis ? (
+        <TutorPanel
+          key={tutorAnalysis.id}
+          org={org}
+          classroom={classroom}
+          assignment={assignment}
+          owner={owner}
+          analysis={tutorAnalysis}
+          previewAs={preview ? preview.alias : null}
+          canSend={role?.role === 'student'}
+          onClose={() => setTutorId(null)}
+        />
+      ) : null}
     </section>
   )
 }

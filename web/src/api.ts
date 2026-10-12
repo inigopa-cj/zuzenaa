@@ -43,6 +43,8 @@ export type Repository = {
   last_synced_at: number | null
   status: string
   detail: string | null
+  /** Dudas enviadas desde el tutor y aún sin leer. */
+  pending_questions: number
 }
 
 export type SyncOut = {
@@ -180,6 +182,39 @@ export type Role = {
   owns_repos: boolean
 }
 
+/** Respuesta del tutor RAG: siempre con sus citas (material, tu feedback o la guía). */
+export type TutorReply = {
+  answer: string
+  citations: {
+    number: number
+    source: 'material' | 'feedback' | 'zuzenaa' | string
+    title: string
+    heading: string | null
+    snippet: string
+    ref: string
+  }[]
+  blocked: boolean
+  provider: string
+}
+
+export type TutorShare = {
+  id: number
+  analysis_id: number
+  commit_sha: string
+  note: string | null
+  transcript: { role: 'user' | 'tutor'; text: string }[]
+  created_at: number
+  read_at: number | null
+}
+
+export type TutorDocument = {
+  id: number
+  title: string
+  filename: string | null
+  chunk_count: number
+  created_at: number
+}
+
 export type Identity = {
   alias: string
   login: string
@@ -239,6 +274,10 @@ function assignmentBase(org: string, classroom: string, assignment: string): str
   return `/api/orgs/${org}/classrooms/${classroom}/assignments/${assignment}`
 }
 
+function tutorBase(org: string, classroom: string): string {
+  return `/api/tutor/orgs/${org}/classrooms/${classroom}`
+}
+
 export const api = {
   me: () => getJson<Me>('/api/auth/me'),
   authStatus: () =>
@@ -279,6 +318,53 @@ export const api = {
         ? `/api/me/assignments?${new URLSearchParams({ as: preview.alias, org: preview.org, classroom: preview.classroom })}`
         : '/api/me/assignments',
     ),
+  tutorChat: (
+    org: string,
+    classroom: string,
+    body: {
+      question: string
+      assignment?: string | null
+      as?: string | null
+      /** Corrección desde la que se abre el tutor (su primera fuente). */
+      analysis_id?: number | null
+    },
+  ) => post<TutorReply>(`${tutorBase(org, classroom)}/chat`, body),
+  tutorSend: (
+    org: string,
+    classroom: string,
+    assignment: string,
+    owner: string,
+    body: { analysis_id: number; note: string | null; transcript: TutorShare['transcript'] },
+  ) =>
+    post<TutorShare>(
+      `${tutorBase(org, classroom)}/assignments/${assignment}/repos/${owner}/shares`,
+      body,
+    ),
+  tutorShares: (org: string, classroom: string, assignment: string, owner: string) =>
+    getJson<TutorShare[]>(
+      `${tutorBase(org, classroom)}/assignments/${assignment}/repos/${owner}/shares`,
+    ),
+  tutorMarkRead: (org: string, classroom: string, id: number) =>
+    post<TutorShare>(`${tutorBase(org, classroom)}/shares/${id}/read`),
+  tutorDocuments: (org: string, classroom: string) =>
+    getJson<TutorDocument[]>(`${tutorBase(org, classroom)}/documents`),
+  tutorUpload: async (org: string, classroom: string, file: File, title?: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (title) form.append('title', title)
+    const response = await fetch(`${tutorBase(org, classroom)}/documents`, {
+      method: 'POST',
+      body: form,
+    })
+    if (!response.ok) throw new Error(await errorMessage(response))
+    return (await response.json()) as TutorDocument
+  },
+  tutorDelete: async (org: string, classroom: string, id: number) => {
+    const response = await fetch(`${tutorBase(org, classroom)}/documents/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) throw new Error(await errorMessage(response))
+  },
   /** Solo staff y queda registrado: la única forma de ver quién hay tras un seudónimo. */
   identity: (org: string, classroom: string, assignment: string, owner: string) =>
     getJson<Identity>(`${assignmentBase(org, classroom, assignment)}/repos/${owner}/identity`),

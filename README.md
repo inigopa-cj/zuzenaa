@@ -72,6 +72,10 @@ El feedback **vive solo en esta plataforma**; no se publica en GitHub.
   feedback completo.
 - Ve la **evolución de la clase** en cada assignment: media de puntos por día, tests que más
   cuestan, pistas comunes y alumnos que necesitan atención.
+- Sube el **material del tutor** de cada clase (apuntes en `.md`/`.txt`) y prueba el tutor con
+  «Ver como este alumno».
+- Recibe las **dudas** que el alumnado envía desde el tutor: la tabla de entregas indica cuántas
+  hay sin leer y la ficha las muestra con la conversación, para marcarlas como leídas.
 - Enlaces directos **«Ver en Classroom 50»** por clase y assignment.
 
 ### Privacidad
@@ -94,6 +98,12 @@ El feedback **vive solo en esta plataforma**; no se publica en GitHub.
 - Un alumno **solo ve lo suyo**: el backend deniega las páginas de gestión (repos, descargar,
   analizar, evolución de la clase) a quien no es staff de la clase.
 - El profesorado puede pulsar **«Ver como este alumno»** en una ficha para comprobar qué ve.
+- **Tutor**: en cada corrección, **Preguntar al tutor** abre un panel a la derecha (1/3 de la
+  pantalla). Responde partiendo de esa corrección, con el material de su clase, **su propio**
+  feedback y la guía de ZuzenAA, **citando** cada fuente. Orienta, no resuelve (no escribe código)
+  y todo se procesa en el servidor: nada sale a internet.
+- **Enviar a mi profesorado**: la duda (y, si quiere, la conversación) llega al profesor ligada a
+  esa corrección, con el código del alumno y nunca con su nombre.
 
 ## Capturas
 

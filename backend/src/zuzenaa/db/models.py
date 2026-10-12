@@ -123,6 +123,68 @@ class IdentityReveal(Base):
     created_at: Mapped[int] = mapped_column(BigInteger, index=True)
 
 
+class TutorDocument(Base):
+    """Documento del corpus del tutor (RAG).
+
+    ``source``: ``material`` (lo sube el profesorado para una clase) o ``zuzenaa``
+    (documentación de la plataforma, común a todas: ``org``/``classroom`` vacíos).
+    El feedback del alumno no se guarda aquí: se recupera en cada pregunta y solo el suyo.
+    """
+
+    __tablename__ = "tutor_documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org: Mapped[str | None] = mapped_column(String(100), index=True)
+    classroom: Mapped[str | None] = mapped_column(String(100))
+    source: Mapped[str] = mapped_column(String(20))  # material | zuzenaa
+    title: Mapped[str] = mapped_column(String(200))
+    filename: Mapped[str | None] = mapped_column(String(255))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    uploaded_by: Mapped[str | None] = mapped_column(String(100))
+    chunk_count: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[int] = mapped_column(BigInteger)
+
+
+class TutorChunk(Base):
+    """Fragmento indexado de un documento del tutor, con su embedding (JSON)."""
+
+    __tablename__ = "tutor_chunks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("tutor_documents.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column()
+    heading: Mapped[str | None] = mapped_column(String(200))
+    text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[str] = mapped_column(Text)  # lista de floats en JSON
+
+
+class TutorShare(Base):
+    """Duda que el alumno envía a su profesorado desde el tutor, ligada a una corrección.
+
+    Es lo único del tutor que se guarda, y solo si el alumno lo envía. El texto (nota y
+    conversación) se guarda ya limpio de datos personales: con el seudónimo, nunca con
+    el login ni el nombre.
+    """
+
+    __tablename__ = "tutor_shares"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org: Mapped[str] = mapped_column(String(100), index=True)
+    classroom: Mapped[str] = mapped_column(String(100))
+    assignment: Mapped[str] = mapped_column(String(100))
+    owner: Mapped[str] = mapped_column(String(100), index=True)  # login (solo backend)
+    analysis_id: Mapped[int] = mapped_column(
+        ForeignKey("analyses.id", ondelete="CASCADE"), index=True
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    transcript: Mapped[str] = mapped_column(Text)  # JSON [{role, text}]
+    created_at: Mapped[int] = mapped_column(BigInteger, index=True)
+    read_at: Mapped[int | None] = mapped_column(BigInteger)
+    read_by: Mapped[str | None] = mapped_column(String(100))
+
+
 class SyncRun(Base):
     """Progress of a bulk repository download."""
 

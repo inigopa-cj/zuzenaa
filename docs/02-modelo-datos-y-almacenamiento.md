@@ -82,6 +82,19 @@ Seudónimo estable de cada alumno **por clase** (ver docs/01 §4.1).
 ### `identity_reveals`
 Registro de cada «Mostrar identidad»: `org`, `classroom`, `alias`, `viewer_login`, `created_at`.
 
+### `tutor_documents` / `tutor_chunks`
+Corpus del tutor. `tutor_documents`: `org`/`classroom` (vacíos en la guía de ZuzenAA), `source`
+(`material` | `zuzenaa`), `title`, `filename`, `content_hash`, `uploaded_by`, `chunk_count`.
+`tutor_chunks`: fragmentos (`heading`, `text`) con su `embedding` en JSON. La similitud se calcula
+en el backend; si el corpus crece, el paso natural es `pgvector` en la misma Postgres.
+El feedback del alumno **no** se copia aquí: se recupera en cada pregunta y solo el suyo.
+
+### `tutor_shares`
+Dudas que el alumno **envía a su profesorado** desde el tutor, ligadas a una corrección: `org`,
+`classroom`, `assignment`, `owner` (login, solo backend), `analysis_id`, `note`, `transcript`
+(JSON `[{role, text}]`), `created_at`, `read_at`, `read_by`. Nota y conversación se guardan **ya
+limpias** de datos personales (seudónimo). Es lo único del tutor que se guarda.
+
 ### `sync_runs` / `analysis_runs` (opcional)
 Estado y progreso de las descargas y de los análisis masivos.
 

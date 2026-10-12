@@ -214,7 +214,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   )
 }
 
-type IconName = 'classes' | 'student' | 'settings' | 'external'
+type IconName = 'classes' | 'student' | 'settings' | 'external' | 'chat'
 
 function RailIcon({ name }: { name: IconName }) {
   const paths: Record<IconName, string> = {
@@ -223,6 +223,7 @@ function RailIcon({ name }: { name: IconName }) {
     student:
       'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
     external: 'M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h5',
+    chat: 'M4 5.5A1.5 1.5 0 015.5 4h13A1.5 1.5 0 0120 5.5v9a1.5 1.5 0 01-1.5 1.5H9l-4 4v-4.5A1.5 1.5 0 014 14.5v-9zM8 9h8M8 12h5',
     settings:
       'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2 2 2 0 11-4 0 1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 004 15a2 2 0 010-4 1.7 1.7 0 001.1-2.8l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 4.6a2 2 0 014 0 1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1A1.7 1.7 0 0020 11a2 2 0 010 4z',
   }

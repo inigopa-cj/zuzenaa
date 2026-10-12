@@ -57,6 +57,18 @@ Docker Compose. Comandos abajo.
   `GET .../assignments/{a}/repos/{owner}/analyses` (histórico, con `feedback` estructurado).
   La lectura del histórico está **autorizada**: el alumno (sesión) solo ve lo suyo; el **staff**
   de la clase (`gh teacher staff`) ve a cualquiera; sin sesión solo pasa el atajo `allow_env_token`.
+- **Tutor RAG** (`api/tutor.py`, `tutor/`): `POST /tutor/orgs/{org}/classrooms/{c}/chat`
+  (alumnado de la clase o staff; `as=<seudónimo>` = vista previa; `analysis_id` = corrección desde
+  la que se abre, que es siempre la primera fuente y debe ser del propio alumno) y
+  `GET|POST|DELETE .../documents` (material de la clase, solo staff, `.md`/`.txt`). En la web es un
+  **panel lateral (1/3)** que se abre desde una corrección. **Envío al profesorado**:
+  `POST|GET .../assignments/{a}/repos/{owner}/shares` (enviar: solo el propio alumno; ver: alumno o
+  staff) y `POST .../shares/{id}/read` (staff); la tabla de entregas cuenta las dudas sin leer. Corpus: material de **esa** clase + guía de
+  ZuzenAA (`tutor/corpus/*.md`, se indexa al arrancar) + **solo el feedback propio** del alumno.
+  Todo local: embeddings por hashing (`tutor/embeddings.py`), índice en la BD, proveedor `mock`
+  que cita cada fragmento. Misma privacidad (seudónimo + limpieza + bloqueo) y guardarraíles que
+  el agente. Las conversaciones no se guardan, salvo lo que el alumno envía al profesorado
+  (tabla `tutor_shares`, ya limpio: con su seudónimo).
 - **Progreso** (`api/progress.py`, `progress/`): `GET .../assignments/{a}/repos/{owner}/progress`
   (progreso del alumno; misma autorización que el histórico) y `GET .../assignments/{a}/progress`
   (evolución de la clase; **solo staff**). Se calcula al leer sobre `analyses` + `git log`; la
@@ -83,7 +95,7 @@ Docker Compose. Comandos abajo.
 - `DATA_ROOT` (volumen `data`, montado en `/data`):
   `<org>/<classroom>/<assignment>/{repos/<owner>, snapshots/<owner>/<fecha>-<sha>, analyses.json}`.
 - BD: `users`, `sessions`, `oauth_states`, `repositories`, `analyses`, `sync_runs`,
-  `pseudonyms`, `identity_reveals`.
+  `pseudonyms`, `identity_reveals`, `tutor_documents`, `tutor_chunks`, `tutor_shares`.
 - El esquema se crea con `create_all` al arrancar (temporal; migrar a Alembic al estabilizar).
 
 ## Comandos

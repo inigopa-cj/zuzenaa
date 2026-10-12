@@ -91,6 +91,15 @@ ejecutar el seed.
 > (`github/results.py: TestResults`). El lector real de las releases de Classroom 50 está
 > **pendiente** de verificar su formato; fuera del modo demo el análisis sigue sin tests.
 
+## Tutor en la demo
+
+El seed indexa unos apuntes ficticios (`demo/material/apuntes-programazioa.md`) como material de
+`1-maila`. Para probarlo: entra como alumno (o «Ver como este alumno») → en «Mis entregas»,
+**Preguntar al tutor** (o el botón de cada corrección en la ficha) y pregunta, por ejemplo,
+«¿qué tengo que mirar para que pase test_mediana?». Con **Enviar a mi profesorado**, la duda
+aparece en la ficha del profesor y como «1 duda(s)» en la tabla de entregas. Desde la
+página de la clase, el profesorado puede subir más material en **Material del tutor**.
+
 ## Seudónimos en la demo
 
 El alumnado ficticio tiene dos apellidos para que se vea el formato completo. Tras el seed, la

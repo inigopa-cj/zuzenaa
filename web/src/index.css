@@ -1092,6 +1092,38 @@ h3 {
   font-size: 0.88rem;
 }
 
+.tutor-block {
+  margin-top: 0.6rem;
+}
+.tutor-block ul,
+.tutor-block ol {
+  margin: 0.25rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+.tutor-block li {
+  margin: 0.15rem 0;
+}
+.tutor-notes details {
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 0.88rem;
+}
+.tutor-notes summary {
+  cursor: pointer;
+}
+.note-text {
+  margin: 0.4rem 0 0;
+  white-space: pre-line;
+}
+.tutor-notice {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
 /* --- Privacidad --- */
 .identity-note {
   margin: 0.5rem 0 0;

@@ -57,6 +57,17 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr | None = None
     agent_max_diff_chars: int = 20_000
 
+    # Agente tutor (RAG). Proveedor remoto por API de pago; al proveedor solo llega
+    # texto ya seudonimizado y limpio. Sin clave o si falla, responde el mock.
+    tutor_provider: str = "mock"  # mock | anthropic | openai_compatible
+    tutor_model: str = "claude-opus-5-5"  # p. ej. claude-haiku-5-5 (más barato) o el del proveedor
+    tutor_api_key: SecretStr | None = None
+    tutor_base_url: str | None = None  # obligatorio en openai_compatible (…/v1)
+    tutor_effort: str = "low"  # solo anthropic: low | medium | high ("" = no enviarlo)
+    tutor_max_tokens: int = 4000
+    tutor_timeout: float = 60.0
+    tutor_max_questions_per_hour: int = 30  # por usuario; 0 = sin límite
+
     # Atajo de desarrollo: aceptar ZUZENAA_GITHUB_TOKEN si no hay sesión.
     allow_env_token: bool = False
     github_token: SecretStr | None = None

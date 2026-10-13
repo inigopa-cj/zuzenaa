@@ -195,6 +195,22 @@ export type TutorReply = {
   }[]
   blocked: boolean
   provider: string
+  /** Preguntas para que el alumno piense (no la solución). */
+  guide_questions: string[]
+  /** Pasos para abordarlo, en lenguaje natural (sin código). */
+  steps: string[]
+  /** Apuntes que debería revisar, con el motivo y el fragmento. */
+  notes: {
+    number: number
+    source: string
+    title: string
+    heading: string | null
+    reason: string
+    text: string
+    ref: string
+  }[]
+  /** Aviso, p. ej. si el tutor avanzado no está disponible y responde el básico. */
+  notice: string | null
 }
 
 export type TutorShare = {

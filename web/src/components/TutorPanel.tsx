@@ -120,6 +120,46 @@ export function TutorPanel({
           ) : (
             <li key={index} className={`chat-msg chat-tutor${message.reply.blocked ? ' blocked' : ''}`}>
               <p className="chat-answer">{message.reply.answer}</p>
+              {message.reply.guide_questions.length > 0 ? (
+                <div className="tutor-block">
+                  <span className="fb-label">Para pensar</span>
+                  <ul>
+                    {message.reply.guide_questions.map((q) => (
+                      <li key={q}>{q}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {message.reply.steps.length > 0 ? (
+                <div className="tutor-block">
+                  <span className="fb-label">Cómo abordarlo</span>
+                  <ol>
+                    {message.reply.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+              {message.reply.notes.length > 0 ? (
+                <div className="tutor-block tutor-notes">
+                  <span className="fb-label">Apuntes que deberías revisar</span>
+                  {message.reply.notes.map((note) => (
+                    <details key={note.ref}>
+                      <summary>
+                        <b>
+                          {note.title}
+                          {note.heading ? ` / ${note.heading}` : ''}
+                        </b>{' '}
+                        <span className="dim">· {SOURCE_LABEL[note.source] ?? note.source}</span>
+                        <br />
+                        <span>{note.reason}</span>
+                      </summary>
+                      <p className="note-text">{note.text}</p>
+                    </details>
+                  ))}
+                </div>
+              ) : null}
+              {message.reply.notice ? <p className="dim tutor-notice">{message.reply.notice}</p> : null}
               {message.reply.citations.length > 0 ? (
                 <ul className="citations">
                   {message.reply.citations.map((cite) => (

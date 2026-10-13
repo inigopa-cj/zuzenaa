@@ -1,4 +1,4 @@
-"""Embeddings del tutor, 100 % locales (nada sale a internet).
+"""Embeddings del tutor, 100 % locales (la recuperación no llama a ninguna API).
 
 ``Embedder`` es la interfaz: hoy un vectorizador por *hashing* (sin modelo, sin
 descargas, determinista) y mañana un modelo local (p. ej. Ollama) detrás de la

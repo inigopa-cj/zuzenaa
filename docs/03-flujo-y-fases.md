@@ -100,14 +100,16 @@ ZuzenAA solo **lee** ese estado para saber qué assignments y alumnos hay.
 **Criterio:** preguntar «¿por qué falla el test X?» o «explícame Y» y obtener una respuesta con
 citas del material, sin código de solución.
 
-**Estado (hecho, con proveedor `mock`):** tutor en **panel lateral (1/3)** abierto desde una
+**Estado (hecho):** **agente tutor** con herramientas (buscar en los apuntes y responder de forma
+estructurada: explicación, preguntas guía, pasos y apuntes a revisar, sin código), sobre un
+proveedor remoto de pago (Anthropic o compatible con OpenAI) o el `mock` si no hay clave; tutor en **panel lateral (1/3)** abierto desde una
 corrección (que es su primera fuente), para el alumnado y el profesorado en vista previa;
 material por clase que sube el profesorado (`.md`/`.txt`), guía de ZuzenAA integrada y feedback
 propio del alumno. **Envío al profesorado** de la duda y la conversación, ligada a la corrección,
 con «Marcar como leída» y contador de dudas pendientes en la tabla de entregas. Recuperación local (hashing + índice en la BD) con
 reordenación por vocabulario, variedad de fuentes y citas. Sin enunciados de Classroom 50 en el
-corpus (decisión del proyecto). Pendiente: modelo local (Ollama) detrás de `TutorProvider` y
-`Embedder`, `pgvector` si crece el corpus, PDF, respuesta del profesor dentro de la plataforma (hoy solo
+corpus (decisión del proyecto). Pendiente: elegir el modelo definitivo y medir calidad y coste
+con un conjunto de preguntas reales, `pgvector` si crece el corpus, PDF, respuesta del profesor dentro de la plataforma (hoy solo
 «leída») y aviso de dudas pendientes en la evolución de la clase.
 
 **Depende de:** R1 (feedback estructurado), R2 (superficie alumno) y R3 (presupuesto LLM y

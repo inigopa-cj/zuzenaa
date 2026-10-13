@@ -100,8 +100,11 @@ El feedback **vive solo en esta plataforma**; no se publica en GitHub.
 - El profesorado puede pulsar **«Ver como este alumno»** en una ficha para comprobar qué ve.
 - **Tutor**: en cada corrección, **Preguntar al tutor** abre un panel a la derecha (1/3 de la
   pantalla). Responde partiendo de esa corrección, con el material de su clase, **su propio**
-  feedback y la guía de ZuzenAA, **citando** cada fuente. Orienta, no resuelve (no escribe código)
-  y todo se procesa en el servidor: nada sale a internet.
+  feedback y la guía de ZuzenAA. Es un **agente**: explica la duda con palabras, plantea
+  **preguntas para que piense**, propone **pasos** para abordarlo e indica **qué apuntes revisar y
+  por qué**. Nunca escribe código. Funciona con un modelo de pago (Anthropic o cualquier API
+  compatible con OpenAI) al que solo llega texto con el código del alumno, nunca su nombre; sin
+  modelo configurado responde en modo básico.
 - **Enviar a mi profesorado**: la duda (y, si quiere, la conversación) llega al profesor ligada a
   esa corrección, con el código del alumno y nunca con su nombre.
 

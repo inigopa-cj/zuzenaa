@@ -140,3 +140,9 @@ async def test_mock_hint_points_at_what_is_missing() -> None:
     assert todo.feedback is not None and "TODO" in todo.feedback.pista.text
     assert no_tests.feedback is not None and "caso de prueba" in no_tests.feedback.pista.text
     assert done.feedback is not None and "entrada vacía" in done.feedback.pista.text
+
+
+def test_guardrails_allow_ordinary_copia_but_block_copy_paste() -> None:
+    assert guardrails.text_violation("Trabaja con una copia ordenada de la lista.") is None
+    assert guardrails.text_violation("Cópialo tal cual en tu programa.") is not None
+    assert guardrails.text_violation("Copia y pega esto.") is not None

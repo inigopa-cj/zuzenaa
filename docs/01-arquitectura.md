@@ -59,11 +59,15 @@ flowchart LR
   clase (ver §3.3).
 - **Tutor RAG** (`tutor/`, R5): panel lateral (1/3 de la pantalla) que el alumno abre desde una
   **corrección** («Preguntar al tutor»). Esa corrección es la primera fuente; además recupera del
-  material de **su** clase, de la guía de ZuzenAA y de **su propio** feedback, y responde con el
-  proveedor del tutor (hoy `mock` local) citando cada fragmento. El alumno puede **enviar la duda
+  material de **su** clase, de la guía de ZuzenAA y de **su propio** feedback. Responde un
+  **agente** (`tutor/agent.py`) que puede buscar más en los apuntes (`buscar_apuntes`, máx. 2) y
+  entrega una respuesta estructurada (`responder`): explicación, preguntas guía, pasos y apuntes
+  a revisar con su motivo, sin código. El modelo es remoto y de pago (`tutor/models.py`:
+  Anthropic con su SDK oficial o cualquier API compatible con OpenAI); sin él, el `mock`. El alumno puede **enviar la duda
   y la conversación a su profesorado**, ligada a esa corrección; el profesor la lee en la ficha y
   la marca como leída. Mismos guardarraíles que el agente (orienta, no resuelve) y misma
-  privacidad (seudónimo, limpieza y bloqueo). Todo en el servidor: nada sale a internet.
+  privacidad (seudónimo, limpieza y bloqueo): al proveedor solo llega texto seudonimizado y
+  limpio, nunca el nombre ni el login del alumno.
 
 ```mermaid
 flowchart LR
@@ -73,7 +77,8 @@ flowchart LR
     M[(Material de su clase)] --> R
     G[(Guía de ZuzenAA)] --> R
     F[(Su feedback<br/>solo el suyo)] --> R
-    R -->|top-k diverso| P[Proveedor del tutor<br/>mock / modelo local]
+    R -->|top-k diverso| P[Agente tutor<br/>API de pago o mock]
+    P -->|buscar_apuntes| R
     P --> GR[Guardarraíles<br/>sin código ni soluciones]
     GR --> A[Respuesta + citas]
     A -.->|el alumno decide| T[Envío al profesorado<br/>tutor_shares]

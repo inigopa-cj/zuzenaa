@@ -16,7 +16,7 @@ assignments/tests (eso es Classroom 50) ni publicar el feedback en la PR. **No**
 - La API habla en seudónimos: `{owner}` en rutas y `owner` en respuestas son el código; el login
   solo existe dentro del backend (clonar). Tabla `pseudonyms` (`privacy/pseudonyms.py`; nombre
   real **cifrado**).
-- **La identidad nunca llega al agente/LLM** (nada puede salir a internet): el contexto lleva el
+- **La identidad nunca llega al agente/LLM** (aunque el tutor use una API remota): el contexto lleva el
   seudónimo y `privacy/scrub.py` sustituye login, nombre y apellidos en código, diff, rutas y
   feedback previo; si aun así queda alguno, el análisis se **bloquea**.
 - «Mostrar identidad» (`GET .../repos/{owner}/identity`): solo staff de la clase, cada consulta
@@ -65,9 +65,15 @@ Docker Compose. Comandos abajo.
   `POST|GET .../assignments/{a}/repos/{owner}/shares` (enviar: solo el propio alumno; ver: alumno o
   staff) y `POST .../shares/{id}/read` (staff); la tabla de entregas cuenta las dudas sin leer. Corpus: material de **esa** clase + guía de
   ZuzenAA (`tutor/corpus/*.md`, se indexa al arrancar) + **solo el feedback propio** del alumno.
-  Todo local: embeddings por hashing (`tutor/embeddings.py`), índice en la BD, proveedor `mock`
-  que cita cada fragmento. Misma privacidad (seudónimo + limpieza + bloqueo) y guardarraíles que
-  el agente. Las conversaciones no se guardan, salvo lo que el alumno envía al profesorado
+  Recuperación local (embeddings por hashing, índice en la BD). Responde un **agente**
+  (`tutor/agent.py`) con dos herramientas, `buscar_apuntes` y `responder` (salida estructurada:
+  explicación, preguntas guía, pasos y apuntes a revisar con motivo; sin código). Proveedor
+  remoto de pago por `ZUZENAA_TUTOR_PROVIDER` (`tutor/models.py`): `anthropic` (SDK oficial,
+  fallbacks del servidor en los modelos que los admiten) u `openai_compatible` (HTTP); sin clave
+  o si falla, el `mock` con la misma estructura. Al proveedor solo llega texto seudonimizado y
+  limpio. Si la respuesta trae código se le pide reescribirla una vez y, si insiste, se bloquea.
+  Límite de preguntas por usuario y hora. Misma privacidad (seudónimo + limpieza + bloqueo) y
+  guardarraíles que el agente. Las conversaciones no se guardan, salvo lo que el alumno envía al profesorado
   (tabla `tutor_shares`, ya limpio: con su seudónimo).
 - **Progreso** (`api/progress.py`, `progress/`): `GET .../assignments/{a}/repos/{owner}/progress`
   (progreso del alumno; misma autorización que el histórico) y `GET .../assignments/{a}/progress`

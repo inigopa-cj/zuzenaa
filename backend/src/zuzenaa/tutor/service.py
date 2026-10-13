@@ -1,19 +1,21 @@
-"""Responde una duda del alumnado: recuperación (RAG) + privacidad + guardarraíles.
+"""Responde una duda del alumnado: recuperación (RAG) + agente tutor + guardarraíles.
 
 1. La pregunta se limpia de datos personales (login/nombre → seudónimo).
-2. Recuperación: material de **esa** clase + guía de ZuzenAA (``store.search``) y el
-   **feedback del propio alumno** en esa clase, que se recupera en el momento y nunca
-   incluye el de otros.
+2. Recuperación: la corrección desde la que se abre, material de **esa** clase + guía
+   de ZuzenAA (``store.search``) y el **feedback del propio alumno**, que se recupera
+   en el momento y nunca incluye el de otros.
 3. Todo el contexto se limpia y se verifica que no queden datos personales; si
    quedaran, no se envía al proveedor.
-4. La respuesta pasa los mismos guardarraíles que el agente (sin código ni soluciones)
-   y siempre lleva sus citas.
+4. Con un proveedor configurado responde el **agente** (``tutor/agent.py``): explica,
+   plantea preguntas guía, propone pasos e indica qué apuntes revisar, sin código. Sin
+   proveedor (o si falla) responde el mock con la misma estructura.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 
 from sqlalchemy import func, select
 
@@ -22,8 +24,10 @@ from zuzenaa.db.session import SessionLocal
 from zuzenaa.privacy import pseudonyms
 from zuzenaa.privacy.scrub import leaks, scrub
 from zuzenaa.tutor import store
+from zuzenaa.tutor.agent import AgentResult, run_agent
 from zuzenaa.tutor.embeddings import cosine, get_embedder, tokens
-from zuzenaa.tutor.provider import get_tutor, is_safe, topic_only
+from zuzenaa.tutor.models import ProviderError, build_model
+from zuzenaa.tutor.provider import MockTutor, is_safe, topic_only
 from zuzenaa.tutor.store import Passage
 
 MAX_QUESTION_CHARS = 1000
@@ -44,11 +48,28 @@ class Citation:
 
 
 @dataclass
+class Note:
+    """Apunte que el alumno debe revisar, con el motivo y el texto del fragmento."""
+
+    number: int
+    source: str
+    title: str
+    heading: str | None
+    reason: str
+    text: str
+    ref: str
+
+
+@dataclass
 class TutorReply:
     answer: str
     citations: list[Citation]
     blocked: bool
     provider: str
+    guide_questions: list[str] = field(default_factory=list)
+    steps: list[str] = field(default_factory=list)
+    notes: list[Note] = field(default_factory=list)
+    notice: str | None = None  # p. ej. «el tutor avanzado no está disponible»
 
 
 @dataclass
@@ -193,7 +214,6 @@ async def ask(
     Con ``correction`` (abierto desde una corrección), esa corrección es siempre la
     primera fuente y el resto se busca alrededor de ella.
     """
-    tutor = get_tutor()
     question = question.strip()[:MAX_QUESTION_CHARS]
     terms: list[str] = []
     alias = "alumno"
@@ -202,28 +222,114 @@ async def ask(
         terms = await pseudonyms.personal_terms(org, classroom, login)
     clean_question = str(scrub(question, terms, alias))
 
+    def clean(found: list[Passage]) -> list[Passage]:
+        for passage in found:
+            passage.text = str(scrub(passage.text, terms, alias))
+            passage.title = str(scrub(passage.title, terms, alias))
+        return found
+
     topic = topic_only(clean_question)
     passages = await store.search(org, classroom, topic, k=4)
     if login is not None:
         passages += await _own_feedback(org, classroom, login, topic, assignment)
     if correction is not None:
         passages = [p for p in passages if p.ref != correction.passage.ref]
-        # La corrección + lo mejor del material y de otra fuente (se muestran 3 en total).
+        # La corrección + lo mejor del material y de otra fuente.
         passages = [correction.passage, *_diverse(passages, limit=2)]
     else:
         passages = _diverse(passages, limit=4)
-    for passage in passages:
-        passage.text = str(scrub(passage.text, terms, alias))
-        passage.title = str(scrub(passage.title, terms, alias))
+    passages = clean(passages)
 
-    # Nada personal hacia el proveedor (aunque hoy sea local).
+    # Nada personal hacia el proveedor.
     if leaks([clean_question, [(p.title, p.heading or "", p.text) for p in passages]], terms):
-        return TutorReply(answer=BLOCKED, citations=[], blocked=True, provider=tutor.name)
+        return TutorReply(answer=BLOCKED, citations=[], blocked=True, provider="tutor")
 
-    answer = await tutor.answer(question=clean_question, passages=passages)
+    notice: str | None = None
+    try:
+        model = build_model()
+    except ProviderError as exc:
+        model, notice = None, f"Tutor en modo básico: {exc}."
+    if model is not None:
+
+        async def search(query: str) -> list[Passage]:
+            found = await store.search(org, classroom, query, k=3)
+            if login is not None:
+                found += await _own_feedback(org, classroom, login, query, assignment)
+            return clean(found)
+
+        try:
+            result = await run_agent(
+                model, question=clean_question, passages=passages, search=search, terms=terms
+            )
+        except ProviderError as exc:
+            notice = f"El tutor avanzado no está disponible ({exc}); respuesta básica."
+        else:
+            if result.answer is None:
+                return TutorReply(
+                    answer=BLOCKED, citations=[], blocked=True, provider=model.name
+                )
+            return _from_agent(result, provider=model.name)
+
+    return await _mock_reply(clean_question, passages, correction, notice=notice)
+
+
+def _from_agent(result: AgentResult, *, provider: str) -> TutorReply:
+    answer = result.answer
+    assert answer is not None
+    registry = result.registry
+    notes = [
+        Note(
+            number=note.ref,
+            source=registry[note.ref - 1].source,
+            title=registry[note.ref - 1].title,
+            heading=registry[note.ref - 1].heading,
+            reason=note.motivo,
+            text=registry[note.ref - 1].text,
+            ref=registry[note.ref - 1].ref,
+        )
+        for note in answer.apuntes
+    ]
+    cited = {note.number for note in notes} | {
+        int(n) for n in re.findall(r"\[(\d+)\]", answer.respuesta) if 1 <= int(n) <= len(registry)
+    }
+    citations = [
+        Citation(
+            number=n,
+            source=registry[n - 1].source,
+            title=registry[n - 1].title,
+            heading=registry[n - 1].heading,
+            snippet=registry[n - 1].text[:240],
+            ref=registry[n - 1].ref,
+        )
+        for n in sorted(cited)
+    ]
+    return TutorReply(
+        answer=answer.respuesta,
+        citations=citations,
+        blocked=False,
+        provider=provider,
+        guide_questions=answer.preguntas_guia,
+        steps=answer.pasos,
+        notes=notes,
+    )
+
+
+_FAILING = re.compile(r"Fallan?: ([^.]+)\.")
+
+
+async def _mock_reply(
+    question: str,
+    passages: list[Passage],
+    correction: Correction | None,
+    *,
+    notice: str | None,
+) -> TutorReply:
+    """Respuesta sin LLM con la misma estructura que la del agente."""
+    tutor = MockTutor()
+    answer = await tutor.answer(question=question, passages=passages)
     if not is_safe(answer):
         return TutorReply(answer=BLOCKED, citations=[], blocked=True, provider=tutor.name)
-
+    shown = passages[:3]
     citations = [
         Citation(
             number=number,
@@ -233,10 +339,50 @@ async def ask(
             snippet=p.text[:240],
             ref=p.ref,
         )
-        for number, p in enumerate(passages[:3], start=1)
+        for number, p in enumerate(shown, start=1)
         if f"[{number}]" in answer
     ]
-    return TutorReply(answer=answer, citations=citations, blocked=False, provider=tutor.name)
+    notes = [
+        Note(
+            number=number,
+            source=p.source,
+            title=p.title,
+            heading=p.heading,
+            reason=f"Explica «{p.heading or p.title}», relacionado con tu duda.",
+            text=p.text,
+            ref=p.ref,
+        )
+        for number, p in enumerate(shown, start=1)
+        if p.source in {"material", "zuzenaa"}
+    ][:2]
+    questions: list[str] = []
+    failing = _FAILING.search(correction.passage.text) if correction else None
+    if failing:
+        test = failing.group(1).split(",")[0].strip()
+        questions.append(
+            f"¿Qué caso concreto comprueba «{test}»? Escríbelo como un ejemplo de entrada y "
+            "la salida que esperas."
+        )
+    questions.append("¿Qué hace ahora tu programa con ese caso? Síguelo a mano paso a paso.")
+    if notes and notes[0].heading:
+        questions.append(f"Según «{notes[0].heading}», ¿qué paso o condición te falta?")
+    steps = [
+        "Relee el apunte indicado y subraya la idea que se aplica a tu caso.",
+        "Prueba ese caso con un ejemplo pequeño en tu ordenador.",
+        "Ajusta tu código y ejecuta todos los tests antes de volver a subir.",
+    ]
+    if not passages:
+        questions, steps = [], []
+    return TutorReply(
+        answer=answer,
+        citations=citations,
+        blocked=False,
+        provider=tutor.name,
+        guide_questions=questions,
+        steps=steps,
+        notes=notes,
+        notice=notice,
+    )
 
 
-__all__ = ["BLOCKED", "Citation", "Correction", "TutorReply", "ask", "load_correction"]
+__all__ = ["BLOCKED", "Citation", "Correction", "Note", "TutorReply", "ask", "load_correction"]

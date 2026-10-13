@@ -64,7 +64,24 @@ ZUZENAA_CLASSROOM50_URL=https://classroom50.org
 
 # --- Agente ---
 ZUZENAA_LLM_PROVIDER=mock        # mock por defecto (sin clave). Real: más adelante.
+
+# --- Agente tutor (chat del alumnado) ---
+ZUZENAA_TUTOR_PROVIDER=mock      # mock | anthropic | openai_compatible
+# ZUZENAA_TUTOR_API_KEY=...      # clave de la API de pago del proveedor
+# ZUZENAA_TUTOR_MODEL=claude-opus-5-5   # o claude-haiku-5-5 (más barato), o el del proveedor
+# ZUZENAA_TUTOR_BASE_URL=https://api.openai.com/v1   # solo openai_compatible
+# ZUZENAA_TUTOR_MAX_QUESTIONS_PER_HOUR=30
 ```
+
+**Tutor con un modelo de pago.** Con `ZUZENAA_TUTOR_PROVIDER=anthropic` se usa el SDK oficial
+de Anthropic; con `openai_compatible`, cualquier API compatible con OpenAI (indica su URL base
+en `ZUZENAA_TUTOR_BASE_URL`). Sin clave, o si el proveedor falla, el tutor responde en modo
+básico (mock) y lo indica. Al proveedor solo se envía texto **seudonimizado y limpio**: la duda,
+fragmentos de los apuntes y el feedback del alumno con su código, nunca su nombre ni su login.
+Referencia de coste (Claude, octubre de 2026): una respuesta típica (~3.000 tokens de entrada y
+~400 de salida) cuesta unos 0,02 $ con `claude-opus-5-5`, 0,01 $ con `claude-sonnet-5-5` y
+0,0005 $ con `claude-haiku-5-5`. El límite por hora (`ZUZENAA_TUTOR_MAX_QUESTIONS_PER_HOUR`)
+acota el gasto.
 
 Generar la clave secreta:
 

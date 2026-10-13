@@ -17,8 +17,10 @@ from zuzenaa.agent.schema import AgentFeedback
 # Signals that the text is answering instead of guiding.
 _CODE_FENCE = re.compile(r"```")
 _LINE_OF_CODE = re.compile(r"^\s*(def |class |import |from |return |print\()", re.MULTILINE)
+# «copia» a secas no: un tutor puede decir «trabaja con una copia de la lista».
 _SOLUTION_WORDS = re.compile(
-    r"\b(la soluci[óo]n es|copia|pega este c[óo]digo|aqu[íi] tienes el c[óo]digo)\b",
+    r"\b(la soluci[óo]n es|c[óo]pialo|copia y pega|copia este c[óo]digo|"
+    r"pega este c[óo]digo|aqu[íi] tienes el c[óo]digo)\b",
     re.IGNORECASE,
 )
 

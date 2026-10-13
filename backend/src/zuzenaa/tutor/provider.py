@@ -1,9 +1,8 @@
 """Proveedor de respuestas del tutor.
 
-``TutorProvider`` es la interfaz (como ``LlmProvider`` del agente). Hoy solo existe
-el **mock** local: compone la respuesta con los fragmentos recuperados y cita cada
-uno, sin inventar nada. Un modelo local (p. ej. Ollama) entrará detrás de esta misma
-interfaz; nada sale a internet.
+``MockTutor`` es la respuesta sin modelo (modo básico): compone la respuesta con los
+fragmentos recuperados y cita cada uno, sin inventar nada. Se usa cuando no hay
+proveedor configurado o falla; el agente con modelo real vive en ``tutor/agent.py``.
 """
 
 from __future__ import annotations

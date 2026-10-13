@@ -14,6 +14,8 @@ que se guarda ya limpio de datos personales (con su seudónimo).
 """
 
 import json
+import time
+from collections import defaultdict, deque
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
@@ -58,11 +60,25 @@ class CitationOut(BaseModel):
     ref: str
 
 
+class NoteOut(BaseModel):
+    number: int
+    source: str
+    title: str
+    heading: str | None
+    reason: str  # por qué debe revisarlo
+    text: str  # el fragmento de los apuntes
+    ref: str
+
+
 class ChatOut(BaseModel):
     answer: str
     citations: list[CitationOut]
     blocked: bool
     provider: str
+    guide_questions: list[str] = []
+    steps: list[str] = []
+    notes: list[NoteOut] = []
+    notice: str | None = None
 
 
 class DocumentOut(BaseModel):
@@ -71,6 +87,29 @@ class DocumentOut(BaseModel):
     filename: str | None
     chunk_count: int
     created_at: int
+
+
+# Límite de preguntas por usuario y hora: el tutor consulta una API de pago.
+_recent: defaultdict[str, deque[float]] = defaultdict(deque)
+
+
+def _check_rate(who: str) -> None:
+    limit = settings.tutor_max_questions_per_hour
+    if limit <= 0:
+        return
+    now = time.monotonic()
+    window = _recent[who.lower()]
+    while window and now - window[0] > 3600:
+        window.popleft()
+    if len(window) >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Has llegado al límite de {limit} preguntas por hora. "
+                "Vuelve a intentarlo más tarde."
+            ),
+        )
+    window.append(now)
 
 
 async def _owns_repo_in(org: str, classroom: str, login: str) -> bool:
@@ -118,6 +157,7 @@ async def chat(
     org: str, classroom: str, payload: ChatIn, user: OptionalUserDep, gh: GhCliDep
 ) -> ChatOut:
     login = await _asker(org, classroom, payload, user, gh)
+    _check_rate(user.login if user is not None else "(env token)")
     correction = None
     if payload.analysis_id is not None:
         correction = await service.load_correction(org, classroom, payload.analysis_id)
@@ -142,6 +182,10 @@ async def chat(
         citations=[CitationOut(**vars(c)) for c in reply.citations],
         blocked=reply.blocked,
         provider=reply.provider,
+        guide_questions=reply.guide_questions,
+        steps=reply.steps,
+        notes=[NoteOut(**vars(n)) for n in reply.notes],
+        notice=reply.notice,
     )
 
 

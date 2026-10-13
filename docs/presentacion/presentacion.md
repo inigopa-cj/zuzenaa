@@ -492,4 +492,3 @@ docker compose exec backend python -m zuzenaa.demo.seed
 - La web queda en `http://localhost:8080`.
 - Configuración y tutor: `docs/05-guia-configuracion.md`. Demo: `docs/06-datos-de-prueba.md`.
 - Tests: `cd backend && uv run pytest`.
-- **Deja espacio en disco.** Cada reconstrucción acumula caché de Docker (más de 15 GB en este proyecto). Si el disco se llena, `docker builder prune` la borra sin tocar imágenes ni datos. Docker Desktop no devuelve ese espacio a Windows hasta que se compacta su disco virtual.

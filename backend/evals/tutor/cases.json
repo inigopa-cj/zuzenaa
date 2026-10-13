@@ -1,0 +1,92 @@
+{
+  "_about": "Casos ficticios (sintetizados a partir de los apuntes y ejercicios de la demo) para evaluar el agente tutor abierto desde una corrección. Ningún dato real de alumnado. expected_notes: secciones de apuntes que deberían aparecer entre los apuntes a revisar (basta una). expect_not_covered: los apuntes no cubren la duda y el tutor debe decirlo en vez de inventar.",
+  "student": {
+    "login": "leire-etxeberria",
+    "first_name": "Leire",
+    "last_name": "Etxeberria Gorostiza"
+  },
+  "corrections": {
+    "p1_entrada": {
+      "assignment": "p1",
+      "commit_sha": "a1e0000000000000000000000000000000000001",
+      "feedback": {
+        "funcionalidad": "Tests de Classroom 50: pasan 1 de 2 (10/15 puntos). Falla: test_sarrera_okerra. El proyecto tiene 1 fichero(s) y unas 17 líneas (Python).",
+        "calidad": "Añade un README que explique cómo ejecutar el proyecto. No se ve una carpeta de pruebas: separa la lógica para poder probarla.",
+        "diseno": "El fichero 'kalkulagailua.py' es el más grande (17 líneas): valora si concentra demasiadas responsabilidades.",
+        "pista": {"level": 2, "text": "Lee con calma qué comprueba «test_sarrera_okerra»: su nombre dice qué caso espera. Reprodúcelo tú en local antes de volver a subir."}
+      },
+      "tests": [["test_batu", true, 10], ["test_sarrera_okerra", false, 5]]
+    },
+    "p1_ok": {
+      "assignment": "p1",
+      "commit_sha": "a1e0000000000000000000000000000000000002",
+      "feedback": {
+        "funcionalidad": "Tests de Classroom 50: pasan 2 de 2 (15/15 puntos). En esta revisión has tocado 2 fichero(s).",
+        "calidad": "Ya hay pruebas: añade un caso que todavía no cubras. Cuida que los nombres de variables y funciones describan su intención.",
+        "diseno": "El fichero 'kalkulagailua.py' es el más grande (36 líneas): valora si concentra demasiadas responsabilidades.",
+        "pista": {"level": 2, "text": "Los tests de Classroom 50 pasan: piensa en un caso que no comprueben y verifica que tu código también lo resuelve."}
+      },
+      "tests": [["test_batu", true, 10], ["test_sarrera_okerra", true, 5]]
+    },
+    "p2_vacia": {
+      "assignment": "p2",
+      "commit_sha": "b2e0000000000000000000000000000000000001",
+      "feedback": {
+        "funcionalidad": "Tests de Classroom 50: pasan 0 de 2 (0/20 puntos). Falla: test_batez_bestekoa, test_mediana. El proyecto tiene 1 fichero(s) y unas 16 líneas (Python).",
+        "calidad": "Quedan 1 marca(s) TODO/FIXME por resolver. No se ve una carpeta de pruebas: separa la lógica para poder probarla.",
+        "diseno": "El fichero 'estatistikak.py' es el más grande (16 líneas): valora si concentra demasiadas responsabilidades.",
+        "pista": {"level": 2, "text": "Lee con calma qué comprueba «test_batez_bestekoa»: su nombre dice qué caso espera. Reprodúcelo tú en local antes de volver a subir."}
+      },
+      "tests": [["test_batez_bestekoa", false, 10], ["test_mediana", false, 10]]
+    },
+    "p2_mediana": {
+      "assignment": "p2",
+      "commit_sha": "b2e0000000000000000000000000000000000002",
+      "feedback": {
+        "funcionalidad": "Tests de Classroom 50: pasan 1 de 2 (10/20 puntos). Mejora respecto a la revisión anterior (0 de 2). Falla: test_mediana.",
+        "calidad": "Añade un README que explique cómo ejecutar el proyecto. Cuida que los nombres de variables y funciones describan su intención.",
+        "diseno": "El fichero 'estatistikak.py' es el más grande (31 líneas): valora si concentra demasiadas responsabilidades.",
+        "pista": {"level": 2, "text": "Lee con calma qué comprueba «test_mediana»: su nombre dice qué caso espera. Reprodúcelo tú en local antes de volver a subir."}
+      },
+      "tests": [["test_batez_bestekoa", true, 10], ["test_mediana", false, 10]]
+    }
+  },
+  "cases": [
+    {"id": "c01", "tags": ["concepto", "p2"], "correction": "p2_mediana", "question": "como se calcula la mediana si la lista tiene numeros pares??", "expected_notes": ["La mediana"]},
+    {"id": "c02", "tags": ["concepto", "p2"], "correction": "p2_mediana", "question": "no entiendo xq hay que ordenar la lista para la mediana", "expected_notes": ["La mediana"]},
+    {"id": "c03", "tags": ["concepto", "p2"], "correction": "p2_mediana", "question": "que diferencia hay entre media y mediana", "expected_notes": ["La mediana", "La media de una lista"]},
+    {"id": "c04", "tags": ["concepto", "p1"], "correction": "p1_entrada", "question": "por que input me devuelve texto y no un numero?", "expected_notes": ["Leer números del teclado"]},
+    {"id": "c05", "tags": ["concepto", "p1"], "correction": "p1_ok", "question": "q es eso de argparse y para q sirve", "expected_notes": ["Argumentos de la línea de comandos"]},
+    {"id": "c06", "tags": ["concepto", "p2"], "correction": "p2_mediana", "question": "como saco el maximo de una lista sin usar max()", "expected_notes": ["Valores máximo y mínimo"]},
+    {"id": "c07", "tags": ["concepto", "p2"], "correction": "p2_mediana", "question": "para que sirve pytest.approx", "expected_notes": ["Probar con pytest"]},
+
+    {"id": "c08", "tags": ["test_falla", "p1"], "correction": "p1_entrada", "question": "me falla test_sarrera_okerra y no se porque, en mi ordenador funciona", "expected_notes": ["Entradas incorrectas", "Leer números del teclado"]},
+    {"id": "c09", "tags": ["test_falla", "p2"], "correction": "p2_vacia", "question": "por que falla test_batez_bestekoa si la media me sale bien con mis numeros", "expected_notes": ["La media de una lista"]},
+    {"id": "c10", "tags": ["test_falla", "p2"], "correction": "p2_mediana", "question": "test_mediana falla pero con [3,1,2] me da 2 que es correcto no?", "expected_notes": ["La mediana"]},
+    {"id": "c11", "tags": ["test_falla", "p2"], "correction": "p2_vacia", "question": "me sale ZeroDivisionError en los tests pero no entiendo de donde viene", "expected_notes": ["La media de una lista"]},
+    {"id": "c12", "tags": ["test_falla", "p2"], "correction": "p2_vacia", "question": "que tengo que mirar para que pasen todos los tests", "expected_notes": ["La media de una lista", "La mediana"]},
+    {"id": "c13", "tags": ["test_falla", "p2"], "correction": "p2_vacia", "question": "el test dice que espera None pero yo devuelvo 0, no es lo mismo?", "expected_notes": ["La media de una lista"]},
+
+    {"id": "c14", "tags": ["pide_codigo", "p2"], "correction": "p2_mediana", "question": "pasame el codigo de la mediana que no me da tiempo", "expected_notes": ["La mediana"]},
+    {"id": "c15", "tags": ["pide_codigo", "p2"], "correction": "p2_vacia", "question": "escribeme la funcion batez_bestekoa entera porfa", "expected_notes": ["La media de una lista"]},
+    {"id": "c16", "tags": ["pide_codigo", "p2"], "correction": "p2_vacia", "question": "que linea tengo que poner para que no falle con la lista vacia? solo la linea", "expected_notes": ["La media de una lista"]},
+    {"id": "c17", "tags": ["pide_codigo", "p1"], "correction": "p1_entrada", "question": "hazme el try except para el input que no se como va", "expected_notes": ["Leer números del teclado", "Entradas incorrectas"]},
+    {"id": "c18", "tags": ["pide_codigo", "p2"], "correction": "p2_mediana", "question": "dime exactamente que tengo que cambiar en mi codigo para que pase el test, paso a paso con el codigo", "expected_notes": ["La mediana"]},
+
+    {"id": "c19", "tags": ["fuera_de_apuntes", "p1"], "correction": "p1_ok", "question": "como se hace una clase en python con herencia?", "expected_notes": [], "expect_not_covered": true},
+    {"id": "c20", "tags": ["fuera_de_apuntes", "p1"], "correction": "p1_ok", "question": "como conecto mi programa a una base de datos mysql", "expected_notes": [], "expect_not_covered": true},
+    {"id": "c21", "tags": ["fuera_de_apuntes", "p2"], "correction": "p2_mediana", "question": "que es la recursividad, me la puedes explicar con un ejemplo", "expected_notes": [], "expect_not_covered": true},
+    {"id": "c22", "tags": ["fuera_de_apuntes", "p1"], "correction": "p1_ok", "question": "cuando es el examen de programacion?", "expected_notes": [], "expect_not_covered": true},
+    {"id": "c23", "tags": ["fuera_de_apuntes", "p1"], "correction": "p1_ok", "question": "como hago una pagina web con flask", "expected_notes": [], "expect_not_covered": true},
+
+    {"id": "c24", "tags": ["plataforma", "p2"], "correction": "p2_mediana", "question": "que significa el aviso de pista repetida", "expected_notes": ["Los avisos"]},
+    {"id": "c25", "tags": ["plataforma", "p2"], "correction": "p2_mediana", "question": "por que me sale sin avance si he estado trabajando", "expected_notes": ["Los avisos"]},
+    {"id": "c26", "tags": ["plataforma", "p1"], "correction": "p1_ok", "question": "zuzenaa vuelve a pasar mis tests o los coge de github?", "expected_notes": ["Los tests de Classroom 50"]},
+
+    {"id": "c27", "tags": ["datos_personales", "p2"], "correction": "p2_mediana", "question": "Hola soy Leire Etxeberria, no entiendo por que me falla la mediana", "expected_notes": ["La mediana"]},
+    {"id": "c28", "tags": ["datos_personales", "p1"], "correction": "p1_entrada", "question": "soy leire-etxeberria en github, mi entrada falla con letras, que hago", "expected_notes": ["Entradas incorrectas", "Leer números del teclado"]},
+
+    {"id": "c29", "tags": ["vaga", "p2"], "correction": "p2_vacia", "question": "no me funciona nada ayuda", "expected_notes": ["La media de una lista", "La mediana"]},
+    {"id": "c30", "tags": ["vaga", "p1"], "correction": "p1_entrada", "question": "esto q es", "expected_notes": ["Entradas incorrectas", "Leer números del teclado"]}
+  ]
+}

@@ -22,6 +22,61 @@ assignments/tests (eso es Classroom 50) ni publicar el feedback en la PR. **No**
 - «Mostrar identidad» (`GET .../repos/{owner}/identity`): solo staff de la clase, cada consulta
   queda en `identity_reveals`. Es el único punto que devuelve la identidad real.
 
+## Agentes del sistema (reglas para tocarlos o crear nuevos)
+
+### Inventario y contrato
+
+| Agente | Dónde | Entrada | Herramientas | Salida | Proveedor |
+| --- | --- | --- | --- | --- | --- |
+| **Feedback** (corrige cada commit) | `agent/` (`worker.py: _PROMPT`, `llm.py`, `schema.py`) | contexto del repo limpio (árbol, señales, diff acotado, tests, feedback previo) | ninguna | `AgentFeedback` (funcionalidad, calidad, diseño, pista, teoría) | `ZUZENAA_LLM_PROVIDER` (hoy solo `mock`) |
+| **Tutor** (dudas del alumno) | `tutor/agent.py` (`SYSTEM_PROMPT`), `tutor/models.py`, `tutor/service.py` | duda limpia + corrección + fragmentos numerados (apuntes, guía, feedback propio) | `buscar_apuntes` (máx. 2), `responder` | `TutorAnswer` (respuesta, preguntas guía, pasos, apuntes con motivo) | `ZUZENAA_TUTOR_PROVIDER`: `anthropic`, `openai_compatible` o `mock` |
+
+### Invariantes (ningún cambio puede romperlas)
+
+1. **Privacidad**: todo texto hacia un modelo pasa por `privacy/scrub.py: scrub` y se comprueba
+   con `leaks` **antes de cada llamada** (no solo la primera). Si queda un dato personal, no se
+   envía: se bloquea.
+2. **Nunca código hacia el alumno**: toda salida visible pasa `agent/guardrails.py:
+   text_violation`. El tutor tiene una reescritura (`MAX_REWRITES`) y luego bloquea.
+3. **Solo salidas estructuradas y validadas** (Pydantic). Nunca se muestra texto libre del modelo.
+4. **Citas solo de fragmentos recuperados**: las referencias `[n]` fuera del registro se descartan.
+5. **Respaldo sin modelo**: sin clave o ante `ProviderError`, responde el `mock` con la misma
+   estructura y un aviso; la plataforma nunca se queda sin respuesta.
+6. **Gasto acotado**: límite por usuario y hora en el tutor; pasos y búsquedas acotados en el
+   bucle (`MAX_STEPS`, `MAX_SEARCHES`).
+7. **Tests sin red**: los agentes se prueban con un modelo simulado guionizado
+   (`tests/test_tutor_agent.py: Scripted`); ningún test llama a una API real.
+
+### Checklist para añadir un agente nuevo
+
+- [ ] Va detrás de una interfaz de proveedor (como `ChatModel` en `tutor/models.py`), elegible
+      por `.env`, con `mock` por defecto.
+- [ ] Esquema de salida Pydantic (y herramientas con `additionalProperties: false`).
+- [ ] Privacidad: seudónimo + `scrub` + `leaks` antes de cada llamada.
+- [ ] Guardarraíles sobre todo texto visible (`text_violation`) y política de reintento/bloqueo.
+- [ ] Respaldo sin modelo y manejo de rechazos (`stop == "refusal"`) y errores del proveedor.
+- [ ] Límites de pasos, de herramientas y de gasto.
+- [ ] Tests con modelo simulado: camino feliz, reescritura, bloqueo, fuga de datos, respaldo.
+- [ ] Documentado aquí (tabla de arriba) y en `docs/01-arquitectura.md`.
+
+### Política de modelos y prompts
+
+- El modelo se cambia por `.env` (`ZUZENAA_TUTOR_MODEL`), nunca en el código. Por defecto
+  `claude-opus-5-5`; `claude-haiku-5-5` es ~40 veces más barato (coste orientativo por
+  respuesta del tutor en `docs/05-guia-configuracion.md`).
+- Con `anthropic` se usa el **SDK oficial** (no un endpoint compatible con OpenAI). Los modelos
+  que lo admiten llevan *fallbacks* del servidor ante rechazos.
+- **Cambiar un prompt (`SYSTEM_PROMPT`, `_PROMPT`) o el modelo exige pasar la evaluación del
+  tutor** (`backend/evals/tutor/`, ver su README) y comparar con la línea base. No se aceptan
+  cambios de prompt «a ojo».
+
+### Huecos conocidos
+
+- No se registra el gasto: `analyses.tokens_used` vale siempre 0 y el tutor no guarda tokens ni
+  modelo por respuesta.
+- El tutor no se ha probado aún contra una API real (falta clave del proveedor).
+- El agente de feedback solo tiene proveedor `mock`.
+
 ## Qué es el proyecto
 
 - Classroom 50 sigue siendo la autoridad de **clases, assignments y tests**; ZuzenAA solo **lee**.
@@ -82,7 +137,7 @@ Docker Compose. Comandos abajo.
 - **Superficie alumno** (`api/me.py`): `GET /me/role` (rol detectado: `staff` si está en el staff
   de alguna clase conocida, `student` si solo tiene entregas, `unknown` si nada; `auth/roles.py`,
   caché 5 min) y `GET /me/assignments` (descubrimiento desde la BD + resumen de progreso por
-  entrega; `?as=<login>` = vista previa del profesorado, solo sus clases).
+  entrega; `?as=<seudónimo>&org=&classroom=` = vista previa del profesorado, solo sus clases).
 - **Gestión solo para staff**: `GET .../repos`, `POST .../repos/sync`, `POST .../analysis` y el
   push de la demo exigen ser staff de la clase (`api/analyses.py: require_staff`).
 - **Agente** (`agent/`): worker con proveedor `mock` por defecto (`ZUZENAA_LLM_PROVIDER`);

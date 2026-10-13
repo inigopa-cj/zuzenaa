@@ -15,6 +15,8 @@ Ejecuta ``python -m zuzenaa.demo.seed`` (dentro del contenedor del backend) para
    progreso se ordenen como en la vida real. Las revisiones restantes quedan
    pendientes para pulsar «Analizar» en vivo.
 4. Indexar el **material del tutor** de la clase (``demo/material/*.md``).
+5. Dejar **una duda enviada al profesorado** por Nerea (p2), sin leer, para el guion
+   de la demo (``docs/presentacion/guion-demo.md``).
 
 Es idempotente: volver a ejecutarlo reconstruye los orígenes y reutiliza los
 análisis ya existentes (mismo commit => ``cached``).
@@ -24,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import shutil
 import stat
@@ -36,7 +39,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from zuzenaa.agent import service as agent_service
-from zuzenaa.db.models import Repository, User
+from zuzenaa.db.models import Analysis, Repository, TutorShare, User
 from zuzenaa.db.session import SessionLocal, init_models
 from zuzenaa.demo import clone_url_template, dataset, origins_root, releases
 from zuzenaa.demo.dataset import CommitFixture, DemoState, SubmissionSpec
@@ -215,6 +218,66 @@ async def _seed_analyses(
 MATERIAL_DIR = Path(__file__).parent / "material"
 
 
+DEMO_DOUBT_OWNER = "nerea-mendia"
+DEMO_DOUBT_NOTE = "Con un número par de elementos no sé qué valor tiene que devolver la mediana."
+
+
+async def _seed_demo_doubt(org: str) -> None:
+    """Duda de Nerea (p2) sobre su última corrección, sin leer. Idempotente."""
+    async with SessionLocal() as session:
+        repo = (
+            await session.execute(
+                select(Repository).where(
+                    Repository.org == org,
+                    Repository.classroom == dataset.ACTIVE_CLASSROOM,
+                    Repository.assignment == dataset.ASSIGNMENT_P2,
+                    Repository.owner == DEMO_DOUBT_OWNER,
+                )
+            )
+        ).scalar_one_or_none()
+        if repo is None:
+            return
+        exists = (
+            await session.execute(
+                select(TutorShare.id).where(
+                    TutorShare.org == org, TutorShare.owner == DEMO_DOUBT_OWNER
+                )
+            )
+        ).first()
+        analysis = (
+            await session.execute(
+                select(Analysis)
+                .where(Analysis.repository_id == repo.id)
+                .order_by(Analysis.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if exists is not None or analysis is None:
+            return
+        transcript = [
+            {"role": "user", "text": "¿Por qué me falla test_mediana?"},
+            {
+                "role": "tutor",
+                "text": "La mediana es el valor central de la lista ordenada. Revisa qué "
+                "ocurre cuando la lista tiene un número par de elementos: ¿cuál es "
+                "entonces el valor central?",
+            },
+        ]
+        session.add(
+            TutorShare(
+                org=org,
+                classroom=dataset.ACTIVE_CLASSROOM,
+                assignment=dataset.ASSIGNMENT_P2,
+                owner=DEMO_DOUBT_OWNER,
+                analysis_id=analysis.id,
+                note=DEMO_DOUBT_NOTE,
+                transcript=json.dumps(transcript, ensure_ascii=False),
+                created_at=now_epoch(),
+            )
+        )
+        await session.commit()
+
+
 async def _seed_tutor_material(org: str) -> None:
     await tutor_store.ensure_builtin()
     existing = {doc.filename for doc in await tutor_store.documents(org, dataset.ACTIVE_CLASSROOM)}
@@ -306,6 +369,8 @@ async def seed(*, today: date | None = None) -> SeedSummary:
 
     # 4. Material del tutor de la clase (apuntes ficticios), sin duplicar.
     await _seed_tutor_material(state.org)
+    # 5. Una duda ya enviada al profesorado, para enseñarla en directo (guion de la demo).
+    await _seed_demo_doubt(state.org)
 
     return SeedSummary(
         origins=len(submissions), repos=repos, analyses=analyses, errors=errors

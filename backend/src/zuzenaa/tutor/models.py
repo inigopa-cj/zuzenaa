@@ -106,6 +106,7 @@ class AnthropicModel:
         effort: str = "low",
         max_tokens: int = 4000,
         timeout: float = 60.0,
+        workspace_id: str | None = None,
     ) -> None:
         import anthropic
 
@@ -114,8 +115,14 @@ class AnthropicModel:
         self.effort = effort
         self.max_tokens = max_tokens
         self._anthropic = anthropic
+        # Claves no asociadas a un workspace: la API exige la cabecera con su ID.
+        headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
         self._client = anthropic.AsyncAnthropic(
-            api_key=api_key, base_url=base_url, timeout=timeout, max_retries=2
+            api_key=api_key,
+            base_url=base_url,
+            timeout=timeout,
+            max_retries=2,
+            default_headers=headers,
         )
         # Los fallbacks del servidor solo existen en la Claude API (sin base_url propia).
         self._fallbacks = base_url is None and model in _FALLBACK_MODELS
@@ -199,6 +206,9 @@ class AnthropicModel:
             raise ProviderError("clave de API de Anthropic no válida") from exc
         except anthropic.RateLimitError as exc:
             raise ProviderError("límite de uso de la API de Anthropic alcanzado") from exc
+        except anthropic.BadRequestError as exc:
+            hint = " (falta ZUZENAA_TUTOR_WORKSPACE_ID)" if "workspace" in str(exc.message) else ""
+            raise ProviderError(f"la API de Anthropic rechazó la petición (400){hint}") from exc
         except anthropic.APIStatusError as exc:
             raise ProviderError(f"error de la API de Anthropic ({exc.status_code})") from exc
         except anthropic.APIConnectionError as exc:
@@ -326,6 +336,7 @@ def build_model() -> ChatModel | None:
             effort=settings.tutor_effort,
             max_tokens=settings.tutor_max_tokens,
             timeout=settings.tutor_timeout,
+            workspace_id=settings.tutor_workspace_id,
         )
     if provider == "openai_compatible":
         if not settings.tutor_base_url:

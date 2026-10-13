@@ -217,3 +217,19 @@ async def test_runner_dataset_students_are_never_staff() -> None:
     staff = {member.username for member in members}
     assert "irakasle-mikel" in staff
     assert "ane-urrutia" not in staff
+
+
+async def test_seed_leaves_one_pending_doubt_for_the_demo_script() -> None:
+    from zuzenaa.db.models import TutorShare
+
+    await init_models()
+    await seed.seed(today=_TODAY)
+    await seed.seed(today=_TODAY)  # idempotente: no la duplica
+    async with SessionLocal() as session:
+        shares = (
+            await session.execute(select(TutorShare).where(TutorShare.owner == "nerea-mendia"))
+        ).scalars().all()
+    assert len(shares) == 1
+    assert shares[0].assignment == dataset.ASSIGNMENT_P2 and shares[0].read_at is None
+    note = shares[0].note or ""
+    assert note and "Nerea" not in note and "Mendia" not in note
